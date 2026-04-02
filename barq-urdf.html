@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BARQ</title>
+<meta name="description" content="A custom quadruped robot built on a SpotMicro-style frame, running a fully layered Python control stack on a Jetson Orin Nano. No ROS. No middleware. Pure Python from IMU to servo.">
+
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/ColladaLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════
+   CSS VARIABLES & RESET
+   ═══════════════════════════════════════════════ */
+:root {
+  --black: #0a0a0a;
+  --white: #f0ede6;
+  --grey: #6b6b6b;
+  --accent: #c8ff00;
+  --accent-dim: #5a7200;
+  --red: #ff3b30;
+  --blue: #0a84ff;
+  --cyan: #00f0ff;
+  --grid-color: rgba(240,237,230,0.07);
+  --grid-color-strong: rgba(240,237,230,0.12);
+  --border-color: rgba(240,237,230,0.15);
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  --font-body: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --grid-margin: clamp(16px, 3vw, 40px);
+  --grid-gutter: clamp(8px, 1.5vw, 20px);
+  --br: 2px;
+  --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  font-size: clamp(13px, 1.1vw, 16px);
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) var(--black);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--black);
+  color: var(--white);
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent); color: var(--black); }
+
+a { color: var(--white); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   LOADING SCREEN
+   ═══════════════════════════════════════════════ */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--black);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1.5rem;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+#loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+#loader .loader-label {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.3em; color: var(--grey);
+}
+#loader .loader-bar {
+  width: 200px; height: 1px; background: var(--border-color);
+  position: relative; overflow: hidden;
+}
+#loader .loader-bar-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  background: var(--accent); width: 0%; transition: width 0.1s linear;
+}
+#loader .loader-pct {
+  font-family: var(--font-mono); font-size: 2.5rem; font-weight: 300;
+  color: var(--white); letter-spacing: -0.02em;
+}
+
+/* ═══════════════════════════════════════════════
+   GRID OVERLAY
+   ═══════════════════════════════════════════════ */
+.grid-overlay {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; padding: 0 var(--grid-margin);
+}
+.grid-overlay .grid-col { flex: 1; border-left: 1px solid var(--grid-color); }
+.grid-overlay .grid-col:last-child { border-right: 1px solid var(--grid-color); }
+
+/* ═══════════════════════════════════════════════
+   HEADER / NAV
+   ═══════════════════════════════════════════════ */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: var(--grid-margin);
+  display: flex; justify-content: space-between; align-items: flex-start;
+  mix-blend-mode: difference;
+}
+.header-logo {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.25em; line-height: 1.2;
+}
+.header-logo span {
+  display: block; color: var(--grey); font-size: 0.55rem;
+  letter-spacing: 0.15em; margin-top: 0.2em;
+}
+.header-clock {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--grey);
+}
+.header-clock .clock-time {
+  color: var(--white); font-size: 0.75rem; display: block; margin-top: 0.15em;
+}
+
+nav {
+  position: fixed; right: var(--grid-margin); top: 50%;
+  transform: translateY(-50%); z-index: 100;
+  display: flex; flex-direction: column; gap: 0.8rem;
+  mix-blend-mode: difference;
+}
+nav a {
+  font-family: var(--font-mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.2em; color: var(--grey);
+  writing-mode: vertical-lr; transition: color var(--transition); position: relative;
+}
+nav a:hover, nav a.active { color: var(--accent); }
+nav a.active::before {
+  content: ''; position: absolute; left: -6px; top: 0;
+  width: 2px; height: 100%; background: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION UTILITIES
+   ═══════════════════════════════════════════════ */
+section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
+.section-label {
+  display: inline-block; font-family: var(--font-mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.3em; background: var(--black);
+  color: var(--white); padding: 0.3em 0.6em; border: 1px solid var(--border-color);
+  border-radius: var(--br); margin-bottom: 1.5rem;
+}
+.callout-box {
+  background: rgba(10,10,10,0.85); border: 1px solid var(--border-color);
+  padding: 1.2em 1.5em; position: relative; backdrop-filter: blur(10px);
+}
+.callout-box::before {
+  content: attr(data-label); position: absolute; top: -0.6em; left: 1em;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.25em; background: var(--black); color: var(--accent);
+  padding: 0 0.5em; border: 1px solid var(--accent-dim); border-radius: var(--br);
+}
+.divider { width: 100%; height: 1px; background: var(--border-color); margin: 0; }
+
+/* ═══════════════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════════════ */
+#hero {
+  min-height: 100svh; display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding-top: calc(var(--grid-margin) * 3); padding-bottom: var(--grid-margin);
+  position: relative; overflow: hidden;
+}
+.hero-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  flex-wrap: wrap; gap: 2rem;
+}
+.hero-title-block { max-width: 50%; }
+.hero-title {
+  font-family: var(--font-mono); font-size: clamp(2.2rem, 5vw, 4.5rem);
+  font-weight: 300; text-transform: uppercase; letter-spacing: -0.03em; line-height: 0.95;
+}
+.hero-title em { font-style: normal; color: var(--accent); }
+.hero-subtitle {
+  font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--grey); margin-top: 1.5rem;
+  max-width: 420px; line-height: 1.6;
+}
+
+/* 3D Canvas Area */
+.hero-3d-container {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(70vw, 70vh); height: min(70vw, 70vh);
+  z-index: 0; pointer-events: auto;
+}
+#hero-canvas { width: 100% !important; height: 100% !important; display: block; position: absolute; top: 0; left: 0; }
+
+.hero-3d-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1rem; border: 1px dashed var(--border-color);
+  border-radius: 50%; position: absolute; top: 0; left: 0; z-index: 1;
+  transition: opacity 0.6s ease;
+}
+.hero-3d-placeholder.hidden { opacity: 0; pointer-events: none; }
+.hero-3d-placeholder .placeholder-text {
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: var(--grey); text-align: center;
+}
+
+.hero-callout-right { max-width: 300px; text-align: right; }
+
+.hero-bottom {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 1rem; position: relative; z-index: 2;
+}
+.hero-threads { max-width: 380px; }
+.hero-threads-title {
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: var(--accent); background: var(--black);
+  display: inline-block; padding: 0.3em 0.6em; border: 1px solid var(--accent-dim);
+  border-radius: var(--br); margin-bottom: 0.8rem;
+}
+.hero-threads ol {
+  list-style: none; counter-reset: threads; display: flex; flex-direction: column; gap: 0.4rem;
+}
+.hero-threads ol li {
+  counter-increment: threads; font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--white);
+  display: flex; align-items: baseline; gap: 0.6em;
+}
+.hero-threads ol li::before {
+  content: "0" counter(threads) "."; font-size: 0.5rem; color: var(--grey);
+  background: var(--black); border: 1px solid var(--border-color); border-radius: var(--br);
+  padding: 0.15em 0.4em; clip-path: polygon(0% 0, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+  padding-right: 0.7em;
+}
+.hero-cta-row { display: flex; gap: 0.8rem; align-items: center; }
+.hero-cta-row a {
+  font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.15em; border: 1px solid var(--border-color); border-radius: 999px;
+  padding: 0.4em 1.2em; transition: all var(--transition);
+}
+.hero-cta-row a:hover {
+  border-color: var(--accent); color: var(--accent);
+  box-shadow: 0 0 20px rgba(200,255,0,0.1);
+}
+
+/* ═══════════════════════════════════════════════
+   INFO PANEL OVERLAY (cyberpunk leader lines)
+   ═══════════════════════════════════════════════ */
+#info-overlay {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+#info-overlay svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+.info-panel {
+  position: absolute; pointer-events: none;
+  opacity: 0; transition: opacity 0.4s ease;
+  font-family: var(--font-mono);
+}
+.info-panel.visible { opacity: 1; }
+.info-panel-box {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid var(--accent);
+  padding: 12px 16px;
+  min-width: 200px; max-width: 280px;
+  backdrop-filter: blur(12px);
+  position: relative;
+}
+.info-panel-box::before {
+  content: '';
+  position: absolute; top: -1px; left: -1px;
+  width: calc(100% + 2px); height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 20px rgba(200,255,0,0.3);
+}
+.info-panel-box::after {
+  content: '';
+  position: absolute; bottom: -1px; right: -1px;
+  width: 40%; height: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.info-panel-name {
+  font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--accent);
+  margin-bottom: 6px; font-weight: 500;
+}
+.info-panel-type {
+  font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.25em; color: var(--cyan);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.info-panel-type::before {
+  content: ''; width: 4px; height: 4px;
+  background: var(--cyan); border-radius: 50%;
+  box-shadow: 0 0 6px var(--cyan);
+  display: inline-block;
+}
+.info-row {
+  display: flex; justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(240,237,230,0.06);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row-label {
+  font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey);
+}
+.info-row-value {
+  font-size: 0.5rem; color: var(--white);
+  text-align: right;
+}
+
+/* Hover hint */
+.hover-hint {
+  position: absolute; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 0.5rem;
+  text-transform: uppercase; letter-spacing: 0.3em;
+  color: var(--grey); z-index: 5;
+  transition: opacity 0.4s ease;
+  display: flex; align-items: center; gap: 8px;
+}
+.hover-hint .hint-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); opacity: 0.6;
+  animation: pulse-hint 2s ease-in-out infinite;
+}
+@keyframes pulse-hint {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+.hover-hint.hidden { opacity: 0; }
+
+/* Scanline effect on canvas area */
+.hero-3d-container::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,240,255,0.008) 2px,
+    rgba(0,240,255,0.008) 4px
+  );
+  pointer-events: none; z-index: 2;
+  opacity: 0; transition: opacity 0.5s ease;
+}
+.hero-3d-container.part-selected::after { opacity: 1; }
+
+/* ═══════════════════════════════════════════════
+   SCROLL REVEAL
+   ═══════════════════════════════════════════════ */
+.reveal {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .hero-title-block { max-width: 100%; }
+  .hero-callout-right { display: none; }
+  nav { display: none; }
+  .hero-3d-container { width: 90vw; height: 60vw; }
+}
+@media (max-width: 600px) {
+  .hero-bottom { flex-direction: column; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ═══════ LOADING SCREEN ═══════ -->
+<div id="loader">
+  <div class="loader-label">Initializing Control Stack</div>
+  <div class="loader-pct" id="loader-pct">0%</div>
+  <div class="loader-bar">
+    <div class="loader-bar-fill" id="loader-fill"></div>
+  </div>
+  <div class="loader-label" id="loader-status">IMU → IK → Servo</div>
+</div>
+
+<!-- ═══════ GRID OVERLAY ═══════ -->
+<div class="grid-overlay" aria-hidden="true">
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+</div>
+
+<!-- ═══════ HEADER ═══════ -->
+<header>
+  <div class="header-logo">
+    QUADRUPED
+    <span>SpotMicro × Jetson Orin Nano</span>
+  </div>
+  <div class="header-clock">
+    Local Time
+    <span class="clock-time" id="clock">00:00:00</span>
+  </div>
+</header>
+
+<!-- ═══════ SIDE NAV ═══════ -->
+<nav id="side-nav">
+  <a href="#hero" class="active">Origin</a>
+  <a href="#about">About</a>
+  <a href="#architecture">Stack</a>
+  <a href="#hardware">Hardware</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-top">
+    <div class="hero-title-block reveal">
+      <h1 class="hero-title">Pure<br>Python,<br><em>All Four</em><br>Legs.</h1>
+      <p class="hero-subtitle">
+        A custom quadruped robot built on a SpotMicro-style frame, running a fully layered Python control stack on a Jetson Orin Nano. No ROS. No middleware.
+      </p>
+    </div>
+    <div class="hero-callout-right reveal reveal-delay-2">
+      <div class="callout-box" data-label="Philosophy">
+        <p style="font-family:var(--font-mono);font-size:0.65rem;color:var(--grey);line-height:1.6;">
+          Each layer has one job. Dependencies flow downward only. All physical constants live in Layer 0. Math space is unitless. Layers are independently testable.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Robot container -->
+  <div class="hero-3d-container" id="hero-3d-container">
+    <div class="hero-3d-placeholder" id="hero-placeholder">
+      <span class="placeholder-text">Assembling URDF...<br>[ 13 links · 12 joints ]</span>
+    </div>
+    <canvas id="hero-canvas"></canvas>
+    <div id="info-overlay">
+      <svg id="leader-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="info-panel" id="info-panel">
+        <div class="info-panel-box">
+          <div class="info-panel-name" id="ip-name">—</div>
+          <div class="info-panel-type" id="ip-type">—</div>
+          <div id="ip-rows"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hover-hint" id="hover-hint">
+      <span class="hint-dot"></span>
+      Hover a component to inspect
+    </div>
+  </div>
+
+  <div class="hero-bottom">
+    <div class="hero-threads reveal reveal-delay-1">
+      <div class="hero-threads-title">Core Threads</div>
+      <ol>
+        <li>3D Inverse Kinematics</li>
+        <li>Trot Gait Generation</li>
+        <li>IMU Posture Control</li>
+        <li>Xbox Gamepad Control</li>
+      </ol>
+    </div>
+    <div class="hero-cta-row reveal reveal-delay-3">
+      <a href="#architecture">Explore Stack</a>
+      <a href="#hardware">View Hardware</a>
+      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     THREE.JS — URDF INTERACTIVE VIEWER
+     ═══════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ═══════════════════════════════════════════
+     URDF DATA (parsed from quadruped.urdf)
+     ═══════════════════════════════════════════ */
+  const URDF_LINKS = {
+    base: {
+      mesh: 'quadruped_robot 5/urdf/meshes/base/base.dae',
+      visual_origin: null,
+      mass: 1.178,
+      collision_size: '310 × 120 × 80 mm'
+    },
+    fl_coxa: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fl/fl_coxa.dae',
+      visual_origin: [-0.130254, -0.041309, -0.218966],
+      mass: 0.092
+    },
+    fl_thigh: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fl/fl_thigh.dae',
+      visual_origin: [-0.103344, -0.066999, -0.208214],
+      mass: 0.124
+    },
+    fl_wrist: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fl/fl_wrist.dae',
+      visual_origin: [-0.045648, -0.074999, -0.117518],
+      mass: 0.092
+    },
+    fr_coxa: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fr/fr_coxa.dae',
+      visual_origin: [-0.130254, 0.036578, -0.218966],
+      mass: 0.092
+    },
+    fr_thigh: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fr/fr_thigh.dae',
+      visual_origin: [-0.103344, 0.062269, -0.208214],
+      mass: 0.124
+    },
+    fr_wrist: {
+      mesh: 'quadruped_robot 5/urdf/meshes/fr/fr_wrist.dae',
+      visual_origin: [-0.045648, 0.070268, -0.117518],
+      mass: 0.092
+    },
+    rl_coxa: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rl/rl_coxa.dae',
+      visual_origin: [0.078047, -0.041309, -0.218966],
+      mass: 0.092
+    },
+    rl_thigh: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rl/rl_thigh.dae',
+      visual_origin: [0.104957, -0.066999, -0.208214],
+      mass: 0.124
+    },
+    rl_wrist: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rl/rl_wrist.dae',
+      visual_origin: [0.162653, -0.074999, -0.117518],
+      mass: 0.092
+    },
+    rr_coxa: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rr/rr_coxa.dae',
+      visual_origin: [0.078047, 0.036578, -0.218966],
+      mass: 0.092
+    },
+    rr_thigh: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rr/rr_thigh.dae',
+      visual_origin: [0.104957, 0.062269, -0.208214],
+      mass: 0.124
+    },
+    rr_wrist: {
+      mesh: 'quadruped_robot 5/urdf/meshes/rr/rr_wrist.dae',
+      visual_origin: [0.162653, 0.070268, -0.117518],
+      mass: 0.092
+    }
+  };
+
+  const URDF_JOINTS = {
+    base_to_fl_coxa:    { parent: 'base',     child: 'fl_coxa',  origin: [0.130254, 0.041309, 0.218966],   axis: [1,0,0], lower: -0.785, upper: 0.785, type: 'revolute' },
+    fl_coxa_to_fl_thigh:{ parent: 'fl_coxa',  child: 'fl_thigh', origin: [-0.026910, 0.025690, -0.010752], axis: [0,-1,0], lower: -1.745, upper: 2.967, type: 'revolute' },
+    fl_thigh_to_fl_wrist:{ parent: 'fl_thigh', child: 'fl_wrist', origin: [-0.057696, 0.008000, -0.090696], axis: [0,-1,0], lower: -2.130, upper: 1.361, type: 'revolute' },
+
+    base_to_fr_coxa:    { parent: 'base',     child: 'fr_coxa',  origin: [0.130254, -0.036578, 0.218966],  axis: [1,0,0], lower: -0.785, upper: 0.785, type: 'revolute' },
+    fr_coxa_to_fr_thigh:{ parent: 'fr_coxa',  child: 'fr_thigh', origin: [-0.026910, -0.025691, -0.010752], axis: [0,1,0], lower: -2.967, upper: 1.745, type: 'revolute' },
+    fr_thigh_to_fr_wrist:{ parent: 'fr_thigh', child: 'fr_wrist', origin: [-0.057696, -0.007999, -0.090696], axis: [0,1,0], lower: -1.362, upper: 2.129, type: 'revolute' },
+
+    base_to_rl_coxa:    { parent: 'base',     child: 'rl_coxa',  origin: [-0.078047, 0.041309, 0.218966],  axis: [1,0,0], lower: -0.785, upper: 0.785, type: 'revolute' },
+    rl_coxa_to_rl_thigh:{ parent: 'rl_coxa',  child: 'rl_thigh', origin: [-0.026910, 0.025690, -0.010752], axis: [0,-1,0], lower: -1.745, upper: 2.967, type: 'revolute' },
+    rl_thigh_to_rl_wrist:{ parent: 'rl_thigh', child: 'rl_wrist', origin: [-0.057696, 0.008000, -0.090696], axis: [0,-1,0], lower: -2.130, upper: 1.361, type: 'revolute' },
+
+    base_to_rr_coxa:    { parent: 'base',     child: 'rr_coxa',  origin: [-0.078047, -0.036578, 0.218966], axis: [1,0,0], lower: -0.785, upper: 0.785, type: 'revolute' },
+    rr_coxa_to_rr_thigh:{ parent: 'rr_coxa',  child: 'rr_thigh', origin: [-0.026910, -0.025691, -0.010752], axis: [0,1,0], lower: -2.967, upper: 1.745, type: 'revolute' },
+    rr_thigh_to_rr_wrist:{ parent: 'rr_thigh', child: 'rr_wrist', origin: [-0.057696, -0.007999, -0.090696], axis: [0,1,0], lower: -1.362, upper: 2.129, type: 'revolute' },
+  };
+
+  // Map each link to its parent joint for info display
+  const LINK_TO_JOINT = {};
+  for (const [jname, jdata] of Object.entries(URDF_JOINTS)) {
+    LINK_TO_JOINT[jdata.child] = { name: jname, ...jdata };
+  }
+
+  // Friendly names for display
+  const FRIENDLY_NAMES = {
+    base: 'Chassis / Base',
+    fl_coxa: 'Front-Left Coxa', fl_thigh: 'Front-Left Thigh', fl_wrist: 'Front-Left Wrist',
+    fr_coxa: 'Front-Right Coxa', fr_thigh: 'Front-Right Thigh', fr_wrist: 'Front-Right Wrist',
+    rl_coxa: 'Rear-Left Coxa', rl_thigh: 'Rear-Left Thigh', rl_wrist: 'Rear-Left Wrist',
+    rr_coxa: 'Rear-Right Coxa', rr_thigh: 'Rear-Right Thigh', rr_wrist: 'Rear-Right Wrist',
+  };
+
+  // Leg group mapping (which links belong to which leg)
+  const LEG_GROUPS = {
+    fl: ['fl_coxa', 'fl_thigh', 'fl_wrist'],
+    fr: ['fr_coxa', 'fr_thigh', 'fr_wrist'],
+    rl: ['rl_coxa', 'rl_thigh', 'rl_wrist'],
+    rr: ['rr_coxa', 'rr_thigh', 'rr_wrist'],
+  };
+  function getLegGroup(linkName) {
+    const prefix = linkName.substring(0, 2);
+    return LEG_GROUPS[prefix] || null;
+  }
+
+  /* ═══════════════════════════════════════════
+     DOM REFERENCES
+     ═══════════════════════════════════════════ */
+  const container   = document.getElementById('hero-3d-container');
+  const canvas      = document.getElementById('hero-canvas');
+  const placeholder = document.getElementById('hero-placeholder');
+  const hoverHint   = document.getElementById('hover-hint');
+  const leaderSvg   = document.getElementById('leader-svg');
+  const infoPanel   = document.getElementById('info-panel');
+  const ipName      = document.getElementById('ip-name');
+  const ipType      = document.getElementById('ip-type');
+  const ipRows      = document.getElementById('ip-rows');
+
+  /* ═══════════════════════════════════════════
+     THREE.JS SETUP
+     ═══════════════════════════════════════════ */
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.6;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.001, 100);
+  camera.position.set(0.35, 0.25, 0.45);
+
+  const scene = new THREE.Scene();
+
+  // Lighting — dramatic cyberpunk
+  const ambLight = new THREE.AmbientLight(0x222233, 0.6);
+  scene.add(ambLight);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+  keyLight.position.set(0.5, 0.8, 0.6);
+  keyLight.castShadow = true;
+  scene.add(keyLight);
+
+  const fillLight = new THREE.DirectionalLight(0x6688cc, 1.0);
+  fillLight.position.set(-0.5, 0.3, 0.3);
+  scene.add(fillLight);
+
+  const rimLight = new THREE.DirectionalLight(0xc8ff00, 0.8);
+  rimLight.position.set(0, -0.3, -0.8);
+  scene.add(rimLight);
+
+  const accentLight = new THREE.PointLight(0x00f0ff, 0.5, 2);
+  accentLight.position.set(-0.3, 0.15, 0.3);
+  scene.add(accentLight);
+
+  scene.add(new THREE.HemisphereLight(0x333355, 0x0a0a0a, 0.4));
+
+  // Controls — auto-rotate by default, user override
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.8;
+  controls.enablePan = false;
+  controls.minDistance = 0.15;
+  controls.maxDistance = 1.2;
+  controls.target.set(0, 0.12, 0);
+
+  let userInteracting = false;
+  canvas.addEventListener('pointerdown', () => {
+    userInteracting = true;
+    controls.autoRotate = false;
+  });
+  canvas.addEventListener('pointerup', () => {
+    userInteracting = false;
+    // resume auto-rotate after 3s idle
+    setTimeout(() => {
+      if (!userInteracting && !selectedLink) controls.autoRotate = true;
+    }, 3000);
+  });
+
+  /* ═══════════════════════════════════════════
+     RESIZE
+     ═══════════════════════════════════════════ */
+  function setSize() {
+    const w = container.clientWidth, h = container.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(setSize).observe(container);
+  setSize();
+
+  /* ═══════════════════════════════════════════
+     MATERIALS
+     ═══════════════════════════════════════════ */
+  function makeBaseMaterial(linkName) {
+    const isBody = linkName === 'base';
+    return new THREE.MeshPhongMaterial({
+      color: isBody ? 0x1a1a1a : 0x2a2a2a,
+      specular: isBody ? 0xc8ff00 : 0x888888,
+      shininess: isBody ? 80 : 50,
+      emissive: 0x050505,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 1.0,
+    });
+  }
+
+  function makeHighlightMaterial(linkName) {
+    return new THREE.MeshPhongMaterial({
+      color: 0x1a2a0a,
+      specular: 0xc8ff00,
+      shininess: 120,
+      emissive: 0x1a2a00,
+      emissiveIntensity: 0.5,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 1.0,
+    });
+  }
+
+  function makeFadedMaterial() {
+    return new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      specular: 0x222222,
+      shininess: 10,
+      emissive: 0x000000,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.12,
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     LOAD ALL .DAE MESHES
+     ═══════════════════════════════════════════ */
+  const colladaLoader = new THREE.ColladaLoader();
+  const linkObjects = {};    // linkName → THREE.Group (the assembled URDF node)
+  const linkMeshes = {};     // linkName → [array of Mesh children]
+  const linkCenters = {};    // linkName → THREE.Vector3 (world center for leader lines)
+  const originalPositions = {}; // linkName → { pos, quat, scale } for restore
+
+  let loadedCount = 0;
+  const totalLinks = Object.keys(URDF_LINKS).length;
+  let robotGroup = new THREE.Group();
+  robotGroup.name = 'robot';
+  scene.add(robotGroup);
+
+  // Build the kinematic tree as nested Three.js groups
+  // Each link is a Group. The joint origin sets the child group's position.
+  const linkGroups = {};
+
+  function buildKinematicTree() {
+    // Create a group for each link
+    for (const linkName of Object.keys(URDF_LINKS)) {
+      const g = new THREE.Group();
+      g.name = linkName;
+      g.userData.linkName = linkName;
+      linkGroups[linkName] = g;
+    }
+
+    // Base goes directly into robotGroup
+    robotGroup.add(linkGroups['base']);
+
+    // For each joint, parent the child link group under the parent link group
+    for (const [jname, jdata] of Object.entries(URDF_JOINTS)) {
+      const parentGroup = linkGroups[jdata.parent];
+      const childGroup = linkGroups[jdata.child];
+      if (parentGroup && childGroup) {
+        childGroup.position.set(jdata.origin[0], jdata.origin[1], jdata.origin[2]);
+        parentGroup.add(childGroup);
+      }
+    }
+  }
+  buildKinematicTree();
+
+  // Load status
+  const statusEl = document.getElementById('loader-status');
+
+  function updateLoadProgress() {
+    loadedCount++;
+    const pct = Math.round((loadedCount / totalLinks) * 100);
+    document.getElementById('loader-pct').textContent = pct + '%';
+    document.getElementById('loader-fill').style.width = pct + '%';
+    if (statusEl) {
+      const names = Object.keys(URDF_LINKS);
+      statusEl.textContent = 'Loading ' + names[loadedCount - 1] + '.dae ...';
+    }
+
+    if (loadedCount >= totalLinks) {
+      finishLoading();
+    }
+  }
+
+  function loadMesh(linkName, linkData) {
+    colladaLoader.load(
+      linkData.mesh,
+      function (collada) {
+        const meshRoot = collada.scene;
+
+        // If the URDF specifies a visual origin offset, apply it
+        if (linkData.visual_origin) {
+          meshRoot.position.set(
+            linkData.visual_origin[0],
+            linkData.visual_origin[1],
+            linkData.visual_origin[2]
+          );
+        }
+
+        // Replace all materials with our custom ones
+        const meshes = [];
+        meshRoot.traverse(function (child) {
+          if (child.isMesh) {
+            child.material = makeBaseMaterial(linkName);
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.userData.linkName = linkName;
+            meshes.push(child);
+          }
+        });
+        linkMeshes[linkName] = meshes;
+
+        // Add mesh to the kinematic group for this link
+        linkGroups[linkName].add(meshRoot);
+        linkObjects[linkName] = meshRoot;
+
+        updateLoadProgress();
+      },
+      undefined,
+      function (err) {
+        console.error('[URDF] Failed to load', linkName, err);
+        updateLoadProgress(); // still count it
+      }
+    );
+  }
+
+  // Start loading all meshes
+  for (const [linkName, linkData] of Object.entries(URDF_LINKS)) {
+    loadMesh(linkName, linkData);
+  }
+
+  /* ═══════════════════════════════════════════
+     FINISH LOADING — center robot, compute bounds
+     ═══════════════════════════════════════════ */
+  function finishLoading() {
+    // Compute bounding box of entire robot
+    const box = new THREE.Box3().setFromObject(robotGroup);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    box.getCenter(center);
+    box.getSize(size);
+
+    // Center robot at origin, standing on y=0
+    robotGroup.position.set(-center.x, -box.min.y, -center.z);
+
+    // Update controls target to center of robot
+    const newBox = new THREE.Box3().setFromObject(robotGroup);
+    const newCenter = new THREE.Vector3();
+    newBox.getCenter(newCenter);
+    controls.target.copy(newCenter);
+
+    // Adjust camera distance
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const dist = maxDim * 2.0;
+    camera.position.set(dist * 0.7, dist * 0.5, dist * 0.9);
+    camera.near = maxDim * 0.01;
+    camera.far = maxDim * 40;
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    // Cache world centers for each link
+    computeLinkCenters();
+
+    // Store original states for restore
+    for (const linkName of Object.keys(linkGroups)) {
+      const g = linkGroups[linkName];
+      originalPositions[linkName] = {
+        pos: g.position.clone(),
+        quat: g.quaternion.clone(),
+        scale: g.scale.clone(),
+      };
+    }
+
+    // Fade out loader
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+      placeholder.classList.add('hidden');
+      document.body.style.overflow = '';
+      initReveal();
+    }, 400);
+
+    console.log('[URDF] All meshes loaded. Robot assembled.');
+  }
+
+  function computeLinkCenters() {
+    for (const linkName of Object.keys(linkGroups)) {
+      const group = linkGroups[linkName];
+      const box = new THREE.Box3().setFromObject(group);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      linkCenters[linkName] = center;
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     RAYCASTING & HOVER DETECTION
+     ═══════════════════════════════════════════ */
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let hoveredLink = null;
+  let selectedLink = null;
+  let isAnimating = false;
+
+  // Smoothed animation state
+  const animState = {
+    // Opacity targets for each link
+    opacities: {},
+    // Explode offset for selected link
+    explodeOffset: new THREE.Vector3(),
+    explodeTarget: new THREE.Vector3(),
+    // Auto-orbit angle for selected part
+    orbitAngle: 0,
+    orbitCenter: new THREE.Vector3(),
+    orbitRadius: 0,
+  };
+
+  // Initialize opacity targets
+  for (const ln of Object.keys(URDF_LINKS)) {
+    animState.opacities[ln] = 1.0;
+  }
+
+  canvas.addEventListener('mousemove', onMouseMove, false);
+  canvas.addEventListener('mouseleave', onMouseLeave, false);
+
+  function onMouseMove(event) {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    if (selectedLink || isAnimating) return; // locked during selection
+
+    raycaster.setFromCamera(mouse, camera);
+    const allMeshes = [];
+    for (const meshArr of Object.values(linkMeshes)) {
+      allMeshes.push(...meshArr);
+    }
+    const intersects = raycaster.intersectObjects(allMeshes, false);
+
+    if (intersects.length > 0) {
+      const hit = intersects[0].object;
+      const linkName = hit.userData.linkName;
+      if (linkName && linkName !== hoveredLink) {
+        hoveredLink = linkName;
+        setCursorPointer(true);
+        updateHoverVisuals(linkName);
+      }
+    } else {
+      if (hoveredLink) {
+        hoveredLink = null;
+        setCursorPointer(false);
+        resetAllVisuals();
+      }
+    }
+  }
+
+  function onMouseLeave() {
+    if (selectedLink) {
+      // Deselect — animate back
+      deselectPart();
+    } else if (hoveredLink) {
+      hoveredLink = null;
+      setCursorPointer(false);
+      resetAllVisuals();
+    }
+  }
+
+  // Click to select (lock the exploded view)
+  canvas.addEventListener('click', function () {
+    if (isAnimating) return;
+    if (selectedLink) return; // already selected, need mouseleave to deselect
+    if (hoveredLink) {
+      selectPart(hoveredLink);
+    }
+  });
+
+  function setCursorPointer(on) {
+    canvas.style.cursor = on ? 'pointer' : 'default';
+  }
+
+  /* ═══════════════════════════════════════════
+     HOVER VISUALS (pre-selection glow)
+     ═══════════════════════════════════════════ */
+  function updateHoverVisuals(linkName) {
+    for (const [ln, meshes] of Object.entries(linkMeshes)) {
+      for (const m of meshes) {
+        if (ln === linkName) {
+          // Highlight hovered
+          m.material = makeHighlightMaterial(ln);
+        } else {
+          // Slightly dim others
+          const mat = makeBaseMaterial(ln);
+          mat.opacity = 0.6;
+          m.material = mat;
+        }
+      }
+    }
+  }
+
+  function resetAllVisuals() {
+    for (const [ln, meshes] of Object.entries(linkMeshes)) {
+      for (const m of meshes) {
+        m.material = makeBaseMaterial(ln);
+      }
+    }
+    hideInfoPanel();
+  }
+
+  /* ═══════════════════════════════════════════
+     SELECT / DESELECT (EXPLODE ANIMATION)
+     ═══════════════════════════════════════════ */
+  function selectPart(linkName) {
+    if (isAnimating) return;
+    selectedLink = linkName;
+    isAnimating = true;
+    controls.autoRotate = false;
+    container.classList.add('part-selected');
+    hoverHint.classList.add('hidden');
+
+    // Compute the world-space center of the selected part
+    computeLinkCenters();
+    const partCenter = linkCenters[linkName].clone();
+    const robotCenter = new THREE.Vector3();
+    new THREE.Box3().setFromObject(robotGroup).getCenter(robotCenter);
+
+    // Explode direction: from robot center outward toward the part
+    const explodeDir = partCenter.clone().sub(robotCenter).normalize();
+    if (explodeDir.length() < 0.001) explodeDir.set(0, 1, 0);
+
+    // For base, just pop upward
+    if (linkName === 'base') explodeDir.set(0, 1, 0);
+
+    const explodeDist = 0.08; // meters to offset
+
+    // Set opacity targets
+    for (const ln of Object.keys(URDF_LINKS)) {
+      animState.opacities[ln] = (ln === linkName) ? 1.0 : 0.08;
+    }
+
+    // Animate materials
+    for (const [ln, meshes] of Object.entries(linkMeshes)) {
+      for (const m of meshes) {
+        if (ln === linkName) {
+          m.material = makeHighlightMaterial(ln);
+        } else {
+          m.material = makeFadedMaterial();
+        }
+      }
+    }
+
+    // Animate explode offset on the selected link's group
+    // We do this by adding an offset to the link's world position
+    // Since the kinematic tree is nested, we need to be careful.
+    // Approach: temporarily reparent the selected link's meshes to a floating group
+    // Actually simpler: just translate the link group
+    animState.explodeTarget.copy(explodeDir).multiplyScalar(explodeDist);
+    animState.explodeOffset.set(0, 0, 0);
+
+    // Set up orbit
+    animState.orbitAngle = 0;
+    animState.orbitCenter.copy(partCenter);
+    animState.orbitRadius = 0.25;
+
+    // Show info panel
+    showInfoPanel(linkName);
+
+    // Mark animation done after a short period
+    setTimeout(() => { isAnimating = false; }, 600);
+  }
+
+  function deselectPart() {
+    if (isAnimating) return;
+    isAnimating = true;
+    const prev = selectedLink;
+    selectedLink = null;
+    container.classList.remove('part-selected');
+
+    // Reset opacity targets
+    for (const ln of Object.keys(URDF_LINKS)) {
+      animState.opacities[ln] = 1.0;
+    }
+
+    // Reset materials
+    resetAllVisuals();
+
+    // Reset explode
+    animState.explodeTarget.set(0, 0, 0);
+
+    // Resume auto-rotate
+    setTimeout(() => {
+      controls.autoRotate = true;
+      isAnimating = false;
+      hoverHint.classList.remove('hidden');
+    }, 600);
+  }
+
+  /* ═══════════════════════════════════════════
+     INFO PANEL — cyberpunk leader lines
+     ═══════════════════════════════════════════ */
+  function showInfoPanel(linkName) {
+    const friendly = FRIENDLY_NAMES[linkName] || linkName;
+    const jointInfo = LINK_TO_JOINT[linkName];
+    const linkData = URDF_LINKS[linkName];
+
+    ipName.textContent = friendly;
+
+    if (jointInfo) {
+      ipType.textContent = jointInfo.type + ' joint';
+    } else {
+      ipType.textContent = 'root link';
+    }
+
+    // Build info rows
+    let html = '';
+    html += makeRow('Mass', (linkData.mass * 1000).toFixed(0) + ' g');
+    if (linkData.collision_size) {
+      html += makeRow('Collision', linkData.collision_size);
+    }
+    if (jointInfo) {
+      const lowerDeg = (jointInfo.lower * 180 / Math.PI).toFixed(1);
+      const upperDeg = (jointInfo.upper * 180 / Math.PI).toFixed(1);
+      html += makeRow('Joint', jointInfo.name);
+      html += makeRow('Axis', '[' + jointInfo.axis.join(', ') + ']');
+      html += makeRow('Range', lowerDeg + ' to ' + upperDeg + ' deg');
+      html += makeRow('Origin', jointInfo.origin.map(v => (v*1000).toFixed(1)).join(', ') + ' mm');
+    }
+    html += makeRow('Link', linkName);
+    html += makeRow('Mesh', linkName + '.dae');
+
+    ipRows.innerHTML = html;
+    infoPanel.classList.add('visible');
+  }
+
+  function hideInfoPanel() {
+    infoPanel.classList.remove('visible');
+    leaderSvg.innerHTML = '';
+  }
+
+  function makeRow(label, value) {
+    return '<div class="info-row"><span class="info-row-label">' + label +
+           '</span><span class="info-row-value">' + value + '</span></div>';
+  }
+
+  /* ═══════════════════════════════════════════
+     UPDATE LEADER LINE & PANEL POSITION
+     ═══════════════════════════════════════════ */
+  function updateInfoPosition() {
+    if (!selectedLink) return;
+
+    // Project the 3D center of the selected part to 2D screen space
+    computeLinkCenters();
+    const worldPos = linkCenters[selectedLink];
+    if (!worldPos) return;
+
+    const projected = worldPos.clone().project(camera);
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const sx = (projected.x * 0.5 + 0.5) * w;
+    const sy = (-projected.y * 0.5 + 0.5) * h;
+
+    // Panel position — offset to the right side
+    const panelX = Math.min(sx + 80, w - 290);
+    const panelY = Math.max(sy - 60, 20);
+
+    infoPanel.style.left = panelX + 'px';
+    infoPanel.style.top = panelY + 'px';
+
+    // Draw leader line: from part center → bend → panel
+    const midX = sx + 40;
+    const midY = sy;
+
+    const pathD = `M ${sx} ${sy} L ${midX} ${midY} L ${panelX} ${panelY + 10}`;
+
+    leaderSvg.innerHTML = `
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path d="${pathD}" fill="none" stroke="rgba(200,255,0,0.5)" stroke-width="1" filter="url(#glow)"/>
+      <path d="${pathD}" fill="none" stroke="rgba(200,255,0,0.9)" stroke-width="0.5"/>
+      <circle cx="${sx}" cy="${sy}" r="3" fill="none" stroke="#c8ff00" stroke-width="1">
+        <animate attributeName="r" values="3;6;3" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="${sx}" cy="${sy}" r="1.5" fill="#c8ff00"/>
+    `;
+  }
+
+  /* ═══════════════════════════════════════════
+     ANIMATION LOOP
+     ═══════════════════════════════════════════ */
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+
+    controls.update();
+
+    // Smooth explode offset
+    if (selectedLink && linkGroups[selectedLink]) {
+      const g = linkGroups[selectedLink];
+      const orig = originalPositions[selectedLink];
+      if (orig) {
+        // Lerp toward explode target
+        animState.explodeOffset.lerp(animState.explodeTarget, 0.08);
+        g.position.copy(orig.pos).add(animState.explodeOffset);
+      }
+    } else {
+      // Restore all positions smoothly
+      animState.explodeOffset.lerp(animState.explodeTarget, 0.1);
+      for (const [ln, g] of Object.entries(linkGroups)) {
+        const orig = originalPositions[ln];
+        if (orig) {
+          g.position.lerp(orig.pos, 0.1);
+        }
+      }
+    }
+
+    // Auto-orbit for selected part (rotate camera around the part)
+    if (selectedLink && !userInteracting) {
+      animState.orbitAngle += delta * 0.3;
+    }
+
+    // Update leader line position
+    updateInfoPosition();
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  /* ═══════════════════════════════════════════
+     LOADING SCREEN BOOT SEQUENCE
+     ═══════════════════════════════════════════ */
+  document.body.style.overflow = 'hidden';
+
+  /* ═══════════════════════════════════════════
+     CLOCK
+     ═══════════════════════════════════════════ */
+  (function () {
+    const el = document.getElementById('clock');
+    function update() {
+      const now = new Date();
+      el.textContent = now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }
+    update();
+    setInterval(update, 1000);
+  })();
+
+  /* ═══════════════════════════════════════════
+     SCROLL REVEAL
+     ═══════════════════════════════════════════ */
+  window.initReveal = function () {
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    reveals.forEach(el => observer.observe(el));
+  };
+
+  /* ═══════════════════════════════════════════
+     ACTIVE NAV
+     ═══════════════════════════════════════════ */
+  (function () {
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('#side-nav a');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => {
+        const top = s.offsetTop - 200;
+        if (window.scrollY >= top) current = s.id;
+      });
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+      });
+    });
+  })();
+
+})();
+</script>
+
+</body>
+</html>
