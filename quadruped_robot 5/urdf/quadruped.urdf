@@ -1,0 +1,401 @@
+<?xml version="1.0"?>
+<robot name="quadruped">
+
+  <!-- ================= BASE ================= -->
+  <link name="base">
+    <inertial>
+      <origin xyz="0 0 0.21" />
+      <mass value="1.178" />
+      <inertia ixx="0.00193" iyy="0.01010" izz="0.01064"
+        ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="meshes/base/base.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.21" />
+      <geometry>
+        <box size="0.31 0.12 0.08" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========================================================= -->
+  <!-- ================= FRONT LEFT LEG ======================= -->
+  <!-- ========================================================= -->
+
+  <joint name="base_to_fl_coxa" type="revolute">
+    <parent link="base" />
+    <child link="fl_coxa" />
+    <origin xyz="0.130254 0.041309 0.218966" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785" upper="0.785" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fl_coxa">
+    <inertial>
+      <origin xyz="-0.025 0 0" />
+      <mass value="0.092" />
+      <inertia ixx="0.000014" iyy="0.000023" izz="0.000023"
+        ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.130254 -0.041309 -0.218966" />
+      <geometry>
+        <mesh filename="meshes/fl/fl_coxa.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.025 0 0" />
+      <geometry>
+        <box size="0.05 0.03 0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="fl_coxa_to_fl_thigh" type="revolute">
+    <parent link="fl_coxa" />
+    <child link="fl_thigh" />
+    <origin xyz="-0.026910 0.025690 -0.010752" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.745" upper="2.967" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fl_thigh">
+    <inertial>
+      <origin xyz="-0.035 0.035 -0.05" />
+      <mass value="0.124" />
+      <inertia ixx="0.000074" iyy="0.000107" izz="0.000047"
+        ixy="0" ixz="-0.000033" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.103344 -0.066999 -0.208214" />
+      <geometry>
+        <mesh filename="meshes/fl/fl_thigh.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.035 0.035 -0.05" rpy="0 0.698 0" />
+      <geometry>
+        <cylinder radius="0.015" length="0.10" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="fl_thigh_to_fl_wrist" type="revolute">
+    <parent link="fl_thigh" />
+    <child link="fl_wrist" />
+    <origin xyz="-0.057696 0.008000 -0.090696" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-2.130" upper="1.361" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fl_wrist">
+    <inertial>
+      <origin xyz="0.035 0.030 -0.06" />
+      <mass value="0.092" />
+      <inertia ixx="0.000078" iyy="0.000111" izz="0.000040"
+        ixy="0" ixz="0.000032" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.045648 -0.074999 -0.117518" />
+      <geometry>
+        <mesh filename="meshes/fl/fl_wrist.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.035 0.030 -0.06" rpy="0 -0.611 0" />
+      <geometry>
+        <cylinder radius="0.012" length="0.12" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========================================================= -->
+  <!-- ================= FRONT RIGHT LEG ====================== -->
+  <!-- ========================================================= -->
+
+  <joint name="base_to_fr_coxa" type="revolute">
+    <parent link="base" />
+    <child link="fr_coxa" />
+    <origin xyz="0.130254 -0.036578 0.218966" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785" upper="0.785" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fr_coxa">
+    <inertial>
+      <origin xyz="-0.025 0 0" />
+      <mass value="0.092" />
+      <inertia ixx="0.000014" iyy="0.000023" izz="0.000023"
+        ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.130254 0.036578 -0.218966" />
+      <geometry>
+        <mesh filename="meshes/fr/fr_coxa.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.025 0 0" />
+      <geometry>
+        <box size="0.05 0.03 0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="fr_coxa_to_fr_thigh" type="revolute">
+    <parent link="fr_coxa" />
+    <child link="fr_thigh" />
+    <origin xyz="-0.026910 -0.025691 -0.010752" />
+    <axis xyz="0 1 0" />
+    <limit lower="-2.967" upper="1.745" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fr_thigh">
+    <inertial>
+      <origin xyz="-0.035 -0.035 -0.05" />
+      <mass value="0.124" />
+      <inertia ixx="0.000074" iyy="0.000107" izz="0.000047"
+        ixy="0" ixz="-0.000033" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.103344 0.062269 -0.208214" />
+      <geometry>
+        <mesh filename="meshes/fr/fr_thigh.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.035 -0.035 -0.05" rpy="0 0.698 0" />
+      <geometry>
+        <cylinder radius="0.015" length="0.10" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="fr_thigh_to_fr_wrist" type="revolute">
+    <parent link="fr_thigh" />
+    <child link="fr_wrist" />
+    <origin xyz="-0.057696 -0.007999 -0.090696" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.362" upper="2.129" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="fr_wrist">
+    <inertial>
+      <origin xyz="0.035 -0.030 -0.06" />
+      <mass value="0.092" />
+      <inertia ixx="0.000078" iyy="0.000111" izz="0.000040"
+        ixy="0" ixz="0.000032" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.045648 0.070268 -0.117518" />
+      <geometry>
+        <mesh filename="meshes/fr/fr_wrist.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.035 -0.030 -0.06" rpy="0 -0.611 0" />
+      <geometry>
+        <cylinder radius="0.012" length="0.12" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========================================================= -->
+  <!-- ================= REAR LEFT LEG ======================== -->
+  <!-- ========================================================= -->
+
+  <joint name="base_to_rl_coxa" type="revolute">
+    <parent link="base" />
+    <child link="rl_coxa" />
+    <origin xyz="-0.078047 0.041309 0.218966" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785" upper="0.785" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rl_coxa">
+    <inertial>
+      <origin xyz="-0.025 0 0" />
+      <mass value="0.092" />
+      <inertia ixx="0.000014" iyy="0.000023" izz="0.000023"
+        ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.078047 -0.041309 -0.218966" />
+      <geometry>
+        <mesh filename="meshes/rl/rl_coxa.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.025 0 0" />
+      <geometry>
+        <box size="0.05 0.03 0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rl_coxa_to_rl_thigh" type="revolute">
+    <parent link="rl_coxa" />
+    <child link="rl_thigh" />
+    <origin xyz="-0.026910 0.025690 -0.010752" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.745" upper="2.967" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rl_thigh">
+    <inertial>
+      <origin xyz="-0.035 0.035 -0.05" />
+      <mass value="0.124" />
+      <inertia ixx="0.000074" iyy="0.000107" izz="0.000047"
+        ixy="0" ixz="-0.000033" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.104957 -0.066999 -0.208214" />
+      <geometry>
+        <mesh filename="meshes/rl/rl_thigh.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.035 0.035 -0.05" rpy="0 0.698 0" />
+      <geometry>
+        <cylinder radius="0.015" length="0.10" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rl_thigh_to_rl_wrist" type="revolute">
+    <parent link="rl_thigh" />
+    <child link="rl_wrist" />
+    <origin xyz="-0.057696 0.008000 -0.090696" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-2.130" upper="1.361" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rl_wrist">
+    <inertial>
+      <origin xyz="0.035 0.030 -0.06" />
+      <mass value="0.092" />
+      <inertia ixx="0.000078" iyy="0.000111" izz="0.000040"
+        ixy="0" ixz="0.000032" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.162653 -0.074999 -0.117518" />
+      <geometry>
+        <mesh filename="meshes/rl/rl_wrist.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.035 0.030 -0.06" rpy="0 -0.611 0" />
+      <geometry>
+        <cylinder radius="0.012" length="0.12" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========================================================= -->
+  <!-- ================= REAR RIGHT LEG ======================= -->
+  <!-- ========================================================= -->
+
+  <joint name="base_to_rr_coxa" type="revolute">
+    <parent link="base" />
+    <child link="rr_coxa" />
+    <origin xyz="-0.078047 -0.036578 0.218966" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785" upper="0.785" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rr_coxa">
+    <inertial>
+      <origin xyz="-0.025 0 0" />
+      <mass value="0.092" />
+      <inertia ixx="0.000014" iyy="0.000023" izz="0.000023"
+        ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.078047 0.036578 -0.218966" />
+      <geometry>
+        <mesh filename="meshes/rr/rr_coxa.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.025 0 0" />
+      <geometry>
+        <box size="0.05 0.03 0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rr_coxa_to_rr_thigh" type="revolute">
+    <parent link="rr_coxa" />
+    <child link="rr_thigh" />
+    <origin xyz="-0.026910 -0.025691 -0.010752" />
+    <axis xyz="0 1 0" />
+    <limit lower="-2.967" upper="1.745" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rr_thigh">
+    <inertial>
+      <origin xyz="-0.035 -0.035 -0.05" />
+      <mass value="0.124" />
+      <inertia ixx="0.000074" iyy="0.000107" izz="0.000047"
+        ixy="0" ixz="-0.000033" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.104957 0.062269 -0.208214" />
+      <geometry>
+        <mesh filename="meshes/rr/rr_thigh.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.035 -0.035 -0.05" rpy="0 0.698 0" />
+      <geometry>
+        <cylinder radius="0.015" length="0.10" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rr_thigh_to_rr_wrist" type="revolute">
+    <parent link="rr_thigh" />
+    <child link="rr_wrist" />
+    <origin xyz="-0.057696 -0.007999 -0.090696" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.362" upper="2.129" effort="3.9" velocity="6.5" />
+    <dynamics damping="0.15" friction="0.05" />
+  </joint>
+
+  <link name="rr_wrist">
+    <inertial>
+      <origin xyz="0.035 -0.030 -0.06" />
+      <mass value="0.092" />
+      <inertia ixx="0.000078" iyy="0.000111" izz="0.000040"
+        ixy="0" ixz="0.000032" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0.162653 0.070268 -0.117518" />
+      <geometry>
+        <mesh filename="meshes/rr/rr_wrist.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.035 -0.030 -0.06" rpy="0 -0.611 0" />
+      <geometry>
+        <cylinder radius="0.012" length="0.12" />
+      </geometry>
+    </collision>
+  </link>
+
+</robot>

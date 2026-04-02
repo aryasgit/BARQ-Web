@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BARQ</title>
+<meta name="description" content="A custom quadruped robot built on a SpotMicro-style frame, running a fully layered Python control stack on a Jetson Orin Nano. No ROS. No middleware. Pure Python from IMU to servo.">
+<meta property="og:title" content="Balanced Autonomous Robot Quadruped">
+<meta property="og:description" content="Custom quadruped robot. Full-stack Python controller. Jetson Orin Nano. No ROS.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>">
+
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- GLTFLoader & OrbitControls from same r128 build -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════
+   CSS VARIABLES & RESET
+   ═══════════════════════════════════════════════ */
+:root {
+  --black: #0a0a0a;
+  --white: #f0ede6;
+  --grey: #6b6b6b;
+  --accent: #c8ff00;
+  --accent-dim: #5a7200;
+  --red: #ff3b30;
+  --blue: #0a84ff;
+  --grid-color: rgba(240,237,230,0.07);
+  --grid-color-strong: rgba(240,237,230,0.12);
+  --border-color: rgba(240,237,230,0.15);
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  --font-body: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --grid-margin: clamp(16px, 3vw, 40px);
+  --grid-gutter: clamp(8px, 1.5vw, 20px);
+  --br: 2px;
+  --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+}
+
+html {
+  font-size: clamp(13px, 1.1vw, 16px);
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) var(--black);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--black);
+  color: var(--white);
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--black);
+}
+
+a {
+  color: var(--white);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+a:hover { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   LOADING SCREEN
+   ═══════════════════════════════════════════════ */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--black);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1.5rem;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+#loader.hidden {
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+#loader .loader-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--grey);
+}
+#loader .loader-bar {
+  width: 200px; height: 1px;
+  background: var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+#loader .loader-bar-fill {
+  position: absolute; left: 0; top: 0;
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.1s linear;
+}
+#loader .loader-pct {
+  font-family: var(--font-mono);
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--white);
+  letter-spacing: -0.02em;
+}
+
+/* ═══════════════════════════════════════════════
+   GRID OVERLAY (decorative)
+   ═══════════════════════════════════════════════ */
+.grid-overlay {
+  position: fixed; inset: 0; z-index: 1;
+  pointer-events: none;
+  display: flex;
+  padding: 0 var(--grid-margin);
+}
+.grid-overlay .grid-col {
+  flex: 1;
+  border-left: 1px solid var(--grid-color);
+}
+.grid-overlay .grid-col:last-child {
+  border-right: 1px solid var(--grid-color);
+}
+
+/* ═══════════════════════════════════════════════
+   HEADER / NAV
+   ═══════════════════════════════════════════════ */
+header {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: var(--grid-margin);
+  display: flex; justify-content: space-between; align-items: flex-start;
+  mix-blend-mode: difference;
+}
+.header-logo {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  line-height: 1.2;
+}
+.header-logo span {
+  display: block;
+  color: var(--grey);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  margin-top: 0.2em;
+}
+.header-clock {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-align: right;
+  color: var(--grey);
+}
+.header-clock .clock-time {
+  color: var(--white);
+  font-size: 0.75rem;
+  display: block;
+  margin-top: 0.15em;
+}
+
+nav {
+  position: fixed; right: var(--grid-margin); top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex; flex-direction: column; gap: 0.8rem;
+  mix-blend-mode: difference;
+}
+nav a {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+  writing-mode: vertical-lr;
+  transition: color var(--transition);
+  position: relative;
+}
+nav a:hover, nav a.active {
+  color: var(--accent);
+}
+nav a.active::before {
+  content: '';
+  position: absolute;
+  left: -6px; top: 0;
+  width: 2px; height: 100%;
+  background: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION UTILITIES
+   ═══════════════════════════════════════════════ */
+section {
+  position: relative;
+  padding: 0 var(--grid-margin);
+  z-index: 2;
+}
+.section-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  background: var(--black);
+  color: var(--white);
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--border-color);
+  border-radius: var(--br);
+  margin-bottom: 1.5rem;
+}
+.callout-box {
+  background: rgba(10,10,10,0.85);
+  border: 1px solid var(--border-color);
+  padding: 1.2em 1.5em;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+.callout-box::before {
+  content: attr(data-label);
+  position: absolute; top: -0.6em; left: 1em;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  background: var(--black);
+  color: var(--accent);
+  padding: 0 0.5em;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--br);
+}
+.tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.2em 0.7em;
+  color: var(--grey);
+  transition: all var(--transition);
+}
+.tag:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.divider {
+  width: 100%; height: 1px;
+  background: var(--border-color);
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════════════ */
+#hero {
+  min-height: 100svh;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding-top: calc(var(--grid-margin) * 3);
+  padding-bottom: var(--grid-margin);
+  position: relative;
+  overflow: hidden;
+}
+.hero-top {
+  display: flex; justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap; gap: 2rem;
+}
+.hero-title-block {
+  max-width: 50%;
+}
+.hero-title {
+  font-family: var(--font-mono);
+  font-size: clamp(2.2rem, 5vw, 4.5rem);
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+.hero-title em {
+  font-style: normal;
+  color: var(--accent);
+}
+.hero-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+  margin-top: 1.5rem;
+  max-width: 420px;
+  line-height: 1.6;
+}
+
+/* 3D Canvas Area */
+.hero-3d-container {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(70vw, 70vh);
+  height: min(70vw, 70vh);
+  z-index: 0;
+  pointer-events: auto;
+}
+#hero-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
+}
+/* Placeholder shown while model loads */
+.hero-3d-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 50%;
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 1;
+  transition: opacity 0.6s ease;
+}
+.hero-3d-placeholder.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.hero-3d-placeholder .placeholder-icon {
+  font-size: 4rem;
+  opacity: 0.3;
+  animation: float 4s ease-in-out infinite;
+}
+.hero-3d-placeholder .placeholder-text {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--grey);
+  text-align: center;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(2deg); }
+}
+
+.hero-callout-right {
+  max-width: 300px;
+  text-align: right;
+}
+
+/* Hero bottom bar */
+.hero-bottom {
+  display: flex; justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap; gap: 1rem;
+  position: relative; z-index: 2;
+}
+.hero-threads {
+  max-width: 380px;
+}
+.hero-threads-title {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  background: var(--black);
+  display: inline-block;
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--br);
+  margin-bottom: 0.8rem;
+}
+.hero-threads ol {
+  list-style: none; counter-reset: threads;
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+.hero-threads ol li {
+  counter-increment: threads;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--white);
+  display: flex; align-items: baseline; gap: 0.6em;
+}
+.hero-threads ol li::before {
+  content: "0" counter(threads) ".";
+  font-size: 0.5rem;
+  color: var(--grey);
+  background: var(--black);
+  border: 1px solid var(--border-color);
+  border-radius: var(--br);
+  padding: 0.15em 0.4em;
+  clip-path: polygon(0% 0, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+  padding-right: 0.7em;
+}
+.hero-cta-row {
+  display: flex; gap: 0.8rem; align-items: center;
+}
+.hero-cta-row a {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.4em 1.2em;
+  transition: all var(--transition);
+}
+.hero-cta-row a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 20px rgba(200,255,0,0.1);
+}
+
+/* Leader line SVG decorations */
+.leader-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════════════
+   ABOUT SECTION
+   ═══════════════════════════════════════════════ */
+#about {
+  padding-top: 8rem;
+  padding-bottom: 6rem;
+}
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+.about-main-text {
+  font-size: 1.15rem;
+  line-height: 1.7;
+  font-weight: 300;
+  max-width: 540px;
+}
+.about-main-text strong {
+  color: var(--accent);
+  font-weight: 400;
+}
+.about-right {
+  display: flex; flex-direction: column; gap: 2rem;
+}
+.about-stat-row {
+  display: flex; gap: 1.5rem; flex-wrap: wrap;
+}
+.about-stat {
+  flex: 1; min-width: 120px;
+}
+.about-stat .stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: 300;
+  color: var(--accent);
+  line-height: 1;
+}
+.about-stat .stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+  margin-top: 0.3em;
+}
+
+/* ═══════════════════════════════════════════════
+   ARCHITECTURE SECTION
+   ═══════════════════════════════════════════════ */
+#architecture {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+.arch-title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  margin-bottom: 3rem;
+}
+.arch-layers {
+  display: flex; flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+.arch-layer {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  border-bottom: 1px solid var(--border-color);
+  transition: background var(--transition);
+  cursor: default;
+}
+.arch-layer:last-child { border-bottom: none; }
+.arch-layer:hover {
+  background: rgba(200,255,0,0.03);
+}
+.arch-layer-num {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--accent);
+  padding: 1em;
+  border-right: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+}
+.arch-layer-name {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 1em 1.2em;
+  border-right: 1px solid var(--border-color);
+  display: flex; align-items: center;
+}
+.arch-layer-desc {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--grey);
+  padding: 1em 1.2em;
+  display: flex; align-items: center;
+  line-height: 1.5;
+}
+.arch-layer-file {
+  color: var(--accent-dim);
+}
+
+/* Data flow arrow strip */
+.data-flow {
+  margin-top: 3rem;
+  display: flex; align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+.data-flow-step {
+  flex: 1; min-width: 100px;
+  padding: 0.8em 1em;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+  border-right: 1px solid var(--border-color);
+  position: relative;
+  color: var(--white);
+  transition: background var(--transition);
+}
+.data-flow-step:last-child { border-right: none; }
+.data-flow-step:hover {
+  background: rgba(200,255,0,0.05);
+  color: var(--accent);
+}
+.data-flow-step::after {
+  content: '→';
+  position: absolute; right: -0.5em; top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent-dim);
+  font-size: 0.8rem;
+  z-index: 2;
+}
+.data-flow-step:last-child::after { display: none; }
+
+/* ═══════════════════════════════════════════════
+   HARDWARE SECTION
+   ═══════════════════════════════════════════════ */
+#hardware {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+.hw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--grid-gutter);
+}
+.hw-card {
+  border: 1px solid var(--border-color);
+  padding: 1.5em;
+  position: relative;
+  transition: all var(--transition);
+}
+.hw-card:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 30px rgba(200,255,0,0.03);
+}
+.hw-card-header {
+  display: flex; justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+.hw-card-name {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.hw-card-tag {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  padding: 0.15em 0.5em;
+  border-radius: var(--br);
+}
+.hw-card-value {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 300;
+  color: var(--white);
+  margin-bottom: 0.3rem;
+}
+.hw-card-detail {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--grey);
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════
+   BODY DIMENSIONS SECTION
+   ═══════════════════════════════════════════════ */
+#dimensions {
+  padding-top: 4rem;
+  padding-bottom: 6rem;
+}
+.dims-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+.dims-visual {
+  position: relative;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  aspect-ratio: 4/3;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.dims-visual .dims-placeholder {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--grey);
+  text-align: center;
+}
+.dims-visual .dims-placeholder .dims-icon {
+  font-size: 5rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.15;
+  filter: grayscale(1);
+}
+.dims-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.dims-table tr {
+  border-bottom: 1px solid var(--border-color);
+}
+.dims-table td {
+  font-family: var(--font-mono);
+  padding: 0.6em 0;
+  vertical-align: top;
+}
+.dims-table td:first-child {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--grey);
+  width: 55%;
+}
+.dims-table td:last-child {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-align: right;
+  font-weight: 400;
+}
+
+/* ═══════════════════════════════════════════════
+   TRICKS & GAITS SECTION
+   ═══════════════════════════════════════════════ */
+#tricks {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+.tricks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--grid-gutter);
+  margin-top: 2rem;
+}
+.trick-card {
+  border: 1px solid var(--border-color);
+  padding: 1em;
+  text-align: center;
+  transition: all var(--transition);
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+.trick-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(200,255,0,0.05) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.trick-card:hover::before { opacity: 1; }
+.trick-card:hover { border-color: var(--accent-dim); }
+.trick-card-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+.trick-card-name {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--white);
+}
+.trick-card-btn {
+  font-family: var(--font-mono);
+  font-size: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--grey);
+  margin-top: 0.3em;
+  display: block;
+}
+
+/* Gamepad mapping table */
+.gamepad-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2rem;
+}
+.gamepad-table th {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-align: left;
+  padding: 0.6em 0;
+  border-bottom: 1px solid var(--accent-dim);
+}
+.gamepad-table td {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  padding: 0.5em 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.gamepad-table td:first-child {
+  color: var(--white);
+  width: 40%;
+}
+.gamepad-table td:last-child {
+  color: var(--grey);
+}
+
+/* ═══════════════════════════════════════════════
+   GALLERY / MEDIA SECTION
+   ═══════════════════════════════════════════════ */
+#gallery {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--grid-gutter);
+}
+.gallery-item {
+  aspect-ratio: 4/3;
+  border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.gallery-item:hover {
+  border-color: var(--accent-dim);
+}
+.gallery-item .gallery-placeholder-icon {
+  font-size: 2rem;
+  opacity: 0.2;
+}
+.gallery-item .gallery-placeholder-text {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--grey);
+}
+.gallery-item-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 0.6em 0.8em;
+  background: rgba(10,10,10,0.9);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--grey);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(5px);
+}
+
+/* ═══════════════════════════════════════════════
+   TECH STACK SECTION
+   ═══════════════════════════════════════════════ */
+#stack {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+.stack-marquee {
+  overflow: hidden;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.6em 0;
+  margin-bottom: 3rem;
+}
+.stack-marquee-inner {
+  display: flex; gap: 3rem;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+  width: max-content;
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.stack-marquee-inner span {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+}
+.stack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--grid-gutter);
+}
+.stack-item {
+  border: 1px solid var(--border-color);
+  padding: 1.2em;
+  transition: all var(--transition);
+}
+.stack-item:hover {
+  border-color: var(--accent-dim);
+}
+.stack-item-category {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.stack-item-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--white);
+}
+.stack-item-note {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--grey);
+  margin-top: 0.3rem;
+}
+
+/* ═══════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════ */
+footer {
+  padding: 4rem var(--grid-margin) 2rem;
+  border-top: 1px solid var(--border-color);
+  position: relative; z-index: 2;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+.footer-col-title {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+.footer-col a, .footer-col p {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--grey);
+  margin-bottom: 0.4rem;
+  line-height: 1.4;
+}
+.footer-bottom {
+  display: flex; justify-content: space-between;
+  align-items: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.footer-credit {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--grey);
+  letter-spacing: 0.1em;
+}
+.footer-credit a { color: var(--accent-dim); }
+.footer-credit a:hover { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   SCROLL REVEAL ANIMATIONS
+   ═══════════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .about-grid, .dims-layout { grid-template-columns: 1fr; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .hero-title-block { max-width: 100%; }
+  .hero-callout-right { display: none; }
+  .arch-layer { grid-template-columns: 60px 1fr; }
+  .arch-layer-desc { display: none; }
+  nav { display: none; }
+  .hero-3d-container { width: 90vw; height: 60vw; }
+}
+@media (max-width: 600px) {
+  .gallery-grid { grid-template-columns: 1fr; }
+  .hero-bottom { flex-direction: column; }
+  .data-flow { flex-direction: column; }
+  .data-flow-step { border-right: none; border-bottom: 1px solid var(--border-color); }
+  .data-flow-step::after { display: none; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ═══════ LOADING SCREEN ═══════ -->
+<div id="loader">
+  <div class="loader-label">Initializing Control Stack</div>
+  <div class="loader-pct" id="loader-pct">0%</div>
+  <div class="loader-bar">
+    <div class="loader-bar-fill" id="loader-fill"></div>
+  </div>
+  <div class="loader-label">IMU → IK → Servo</div>
+</div>
+
+<!-- ═══════ GRID OVERLAY ═══════ -->
+<div class="grid-overlay" aria-hidden="true">
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+  <div class="grid-col"></div><div class="grid-col"></div>
+</div>
+
+<!-- ═══════ HEADER ═══════ -->
+<header>
+  <div class="header-logo">
+    QUADRUPED
+    <span>SpotMicro × Jetson Orin Nano</span>
+  </div>
+  <div class="header-clock">
+    Local Time
+    <span class="clock-time" id="clock">00:00:00</span>
+  </div>
+</header>
+
+<!-- ═══════ SIDE NAV ═══════ -->
+<nav id="side-nav">
+  <a href="#hero" class="active">Origin</a>
+  <a href="#about">About</a>
+  <a href="#architecture">Stack</a>
+  <a href="#hardware">Hardware</a>
+  <a href="#dimensions">Body</a>
+  <a href="#tricks">Tricks</a>
+  <a href="#gallery">Gallery</a>
+  <a href="#stack">Tech</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-top">
+    <div class="hero-title-block reveal">
+      <h1 class="hero-title">Pure<br>Python,<br><em>All Four</em><br>Legs.</h1>
+      <p class="hero-subtitle">
+        A custom quadruped robot built on a SpotMicro-style frame, running a fully layered Python control stack on a Jetson Orin Nano. No ROS. No middleware.
+      </p>
+    </div>
+    <div class="hero-callout-right reveal reveal-delay-2">
+      <div class="callout-box" data-label="Philosophy">
+        <p style="font-family:var(--font-mono);font-size:0.65rem;color:var(--grey);line-height:1.6;">
+          Each layer has one job. Dependencies flow downward only. All physical constants live in Layer 0. Math space is unitless. Layers are independently testable.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Robot container — placeholder fades out when GLB is ready -->
+  <div class="hero-3d-container" id="hero-3d-container">
+    <div class="hero-3d-placeholder" id="hero-placeholder">
+      <span class="placeholder-icon">🦿</span>
+      <span class="placeholder-text">Loading Robot Model…<br>[ robot.glb ]</span>
+    </div>
+    <canvas id="hero-canvas"></canvas>
+  </div>
+
+  <div class="hero-bottom">
+    <div class="hero-threads reveal reveal-delay-1">
+      <div class="hero-threads-title">Core Threads</div>
+      <ol>
+        <li>3D Inverse Kinematics</li>
+        <li>Trot Gait Generation</li>
+        <li>IMU Posture Control</li>
+        <li>Xbox Gamepad Control</li>
+      </ol>
+    </div>
+    <div class="hero-cta-row reveal reveal-delay-3">
+      <a href="#architecture">Explore Stack</a>
+      <a href="#hardware">View Hardware</a>
+      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     ABOUT
+     ═══════════════════════════════════════════════ -->
+<section id="about">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">About This Project</span>
+  <div class="about-grid">
+    <div class="about-main-text reveal">
+      This project implements a <strong>fully autonomous quadruped robot controller</strong> in Python. The entire stack runs on the robot — no offboard compute, no ROS — covering 3D inverse kinematics, gait generation, IMU-based posture stabilisation, joint-space normalisation, hardware abstraction, tricks, and full gamepad control.
+      <br><br>
+      The meaning of this build: <strong>every layer from sensor to actuator, understood and owned.</strong> No black boxes. No middleware magic. Pure Python from IMU to servo.
+    </div>
+    <div class="about-right">
+      <div class="callout-box reveal reveal-delay-1" data-label="Not a Framework — A Robot">
+        <p style="font-family:var(--font-mono);font-size:0.6rem;color:var(--grey);line-height:1.7;">
+          The stack is divided into numbered layers. Each layer has exactly one responsibility and communicates only with adjacent layers. You can run any layer in isolation — import the IK solver in a notebook, test posture on a bench, swap the gait generator without touching hardware.
+        </p>
+      </div>
+      <div class="about-stat-row reveal reveal-delay-2">
+        <div class="about-stat">
+          <div class="stat-value">12</div>
+          <div class="stat-label">DS3240 MG Servos</div>
+        </div>
+        <div class="about-stat">
+          <div class="stat-value">50</div>
+          <div class="stat-label">Hz Control Loop</div>
+        </div>
+        <div class="about-stat">
+          <div class="stat-value">7</div>
+          <div class="stat-label">Software Layers</div>
+        </div>
+        <div class="about-stat">
+          <div class="stat-value">0</div>
+          <div class="stat-label">ROS Dependencies</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     ARCHITECTURE
+     ═══════════════════════════════════════════════ -->
+<section id="architecture">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Software Architecture</span>
+  <h2 class="arch-title reveal">Layer by Layer,<br>Top to Bottom.</h2>
+
+  <div class="arch-layers reveal reveal-delay-1">
+    <div class="arch-layer">
+      <div class="arch-layer-num">L6</div>
+      <div class="arch-layer-name">Gait Generator <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">gait/generator.py</span></div>
+      <div class="arch-layer-desc">Produces foot targets over time — trot gait with configurable step length, height, frequency</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L5</div>
+      <div class="arch-layer-name">Posture Controller <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">joints/posture.py</span></div>
+      <div class="arch-layer-desc">IMU feedback → foot target compensation. Roll + pitch stabilisation via Cartesian foot offsets</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L3</div>
+      <div class="arch-layer-name">IK Solver <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">ik/solver.py</span></div>
+      <div class="arch-layer-desc">Hip-local (x,y,z) → joint deltas. Exact geometric IK for SpotMicro leg geometry</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L2.5</div>
+      <div class="arch-layer-name">Joint Conventions <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">joints/conventions.py</span></div>
+      <div class="arch-layer-desc">Sign corrections + zero offsets. Resolves servo mount mirror asymmetry between left and right legs</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L2</div>
+      <div class="arch-layer-name">Joint Space <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">joints/space.py</span></div>
+      <div class="arch-layer-desc">IK deltas → physical servo angles (0–270°). Math world ends here, hardware begins</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L1</div>
+      <div class="arch-layer-name">Hardware Drivers <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">hardware/*.py</span></div>
+      <div class="arch-layer-desc">PCA9685 PWM driver, MPU6050 IMU + complementary filter, shared I2C bus singleton</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-num">L0</div>
+      <div class="arch-layer-name">Absolute Truths <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">hardware/absolute_truths.py</span></div>
+      <div class="arch-layer-desc">ALL physical constants — channel maps, servo limits, stand angles. Single source of truth for the entire stack</div>
+    </div>
+  </div>
+
+  <!-- Data Flow Strip -->
+  <div class="data-flow reveal reveal-delay-2">
+    <div class="data-flow-step">Gait Gen<br><span style="color:var(--grey);font-size:0.45rem;">foot targets</span></div>
+    <div class="data-flow-step">Posture<br><span style="color:var(--grey);font-size:0.45rem;">+ IMU comp</span></div>
+    <div class="data-flow-step">IK Solver<br><span style="color:var(--grey);font-size:0.45rem;">joint deltas</span></div>
+    <div class="data-flow-step">Conventions<br><span style="color:var(--grey);font-size:0.45rem;">sign correct</span></div>
+    <div class="data-flow-step">Joint Space<br><span style="color:var(--grey);font-size:0.45rem;">0–270°</span></div>
+    <div class="data-flow-step">PCA9685<br><span style="color:var(--grey);font-size:0.45rem;">PWM 106–535</span></div>
+    <div class="data-flow-step" style="color:var(--accent);">Servos<br><span style="font-size:0.45rem;">⚡ motion</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     HARDWARE
+     ═══════════════════════════════════════════════ -->
+<section id="hardware">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Hardware</span>
+  <h2 class="arch-title reveal">What's Inside<br>the Chassis.</h2>
+
+  <div class="hw-grid">
+    <div class="hw-card reveal">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Compute</div>
+        <div class="hw-card-tag">Brain</div>
+      </div>
+      <div class="hw-card-value">Jetson Orin Nano</div>
+      <div class="hw-card-detail">Ubuntu 22.04 · I2C Bus 7 · 40 TOPS NVDLA · No offboard compute required</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-1">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Servo Driver</div>
+        <div class="hw-card-tag">PWM</div>
+      </div>
+      <div class="hw-card-value">PCA9685</div>
+      <div class="hw-card-detail">I2C address 0x40 · 12-bit PWM · Channels 0–11 · 106–535 pwm range</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-2">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Servos</div>
+        <div class="hw-card-tag">×12</div>
+      </div>
+      <div class="hw-card-value">DS3240 MG</div>
+      <div class="hw-card-detail">270° travel · 4 coxa + 4 thigh + 4 wrist · Calibrated via tkinter GUI</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-3">
+      <div class="hw-card-header">
+        <div class="hw-card-name">IMU</div>
+        <div class="hw-card-tag">Sensor</div>
+      </div>
+      <div class="hw-card-value">MPU6050</div>
+      <div class="hw-card-detail">HW-290 10DOF · I2C 0x68 · Complementary filter · Boot-time calibration (200 samples)</div>
+    </div>
+    <div class="hw-card reveal">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Depth Camera</div>
+        <div class="hw-card-tag">Vision</div>
+      </div>
+      <div class="hw-card-value">Orbbec Gemini 336</div>
+      <div class="hw-card-detail">Active + passive stereo · Global shutter IR · 850nm bandpass filter · MX6800 on-board ASIC · 6-DoF IMU</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-1">
+      <div class="hw-card-header">
+        <div class="hw-card-name">RGB Camera</div>
+        <div class="hw-card-tag">Wide</div>
+      </div>
+      <div class="hw-card-value">Arducam IMX219</div>
+      <div class="hw-card-detail">220° fisheye · CSI interface · GStreamer pipeline · Lens calibration required for CV</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-2">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Battery</div>
+        <div class="hw-card-tag">Power</div>
+      </div>
+      <div class="hw-card-value">GenX 5200 4S</div>
+      <div class="hw-card-detail">14.8V · 40C continuous (208A) · 76.9 Wh · XT-60 · 512g · 33% chassis volume</div>
+    </div>
+    <div class="hw-card reveal reveal-delay-3">
+      <div class="hw-card-header">
+        <div class="hw-card-name">Display</div>
+        <div class="hw-card-tag">OLED</div>
+      </div>
+      <div class="hw-card-value">SH1106 128×64</div>
+      <div class="hw-card-detail">I2C address 0x3C · Same bus as PCA9685 + IMU · Telemetry display (WIP)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     BODY DIMENSIONS
+     ═══════════════════════════════════════════════ -->
+<section id="dimensions">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Body Geometry</span>
+
+  <div class="dims-layout">
+    <div class="dims-visual reveal">
+      <div class="dims-placeholder">
+        <span class="dims-icon">📐</span>
+        Robot side-view diagram<br>[ placeholder — add annotated image ]
+      </div>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <table class="dims-table">
+        <tr><td>Body Length</td><td>208.30 mm</td></tr>
+        <tr><td>Body Width</td><td>78.90 mm</td></tr>
+        <tr><td>Body Height</td><td>74.00 mm</td></tr>
+        <tr><td>Coxa Link</td><td>16.05 mm</td></tr>
+        <tr><td>Thigh Link</td><td>108.32 mm</td></tr>
+        <tr><td>Shin (Wrist) Link</td><td>134.76 mm</td></tr>
+        <tr><td>Nominal Stand Height</td><td>180.00 mm</td></tr>
+        <tr><td>Frame</td><td>SpotMicro 3D-print</td></tr>
+        <tr><td>Chassis Cavity</td><td>150 × 97 × 48 mm</td></tr>
+      </table>
+
+      <div style="margin-top:2rem;">
+        <div class="callout-box" data-label="Height Modes">
+          <div style="display:flex;gap:1.5rem;font-family:var(--font-mono);font-size:0.6rem;">
+            <div><span style="color:var(--accent);">HIGH</span><br>-190mm</div>
+            <div><span style="color:var(--accent);">NORMAL</span><br>-180mm</div>
+            <div><span style="color:var(--accent);">LOW</span><br>-150mm</div>
+            <div><span style="color:var(--accent);">CROUCH</span><br>-120mm</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     TRICKS & GAITS
+     ═══════════════════════════════════════════════ -->
+<section id="tricks">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Tricks & Gaits</span>
+  <h2 class="arch-title reveal">Not Just Walking —<br><em style="color:var(--accent);font-style:normal;">Performing.</em></h2>
+
+  <div class="tricks-grid reveal reveal-delay-1">
+    <div class="trick-card">
+      <span class="trick-card-icon">🐾</span>
+      <span class="trick-card-name">Trot</span>
+      <span class="trick-card-btn">D-Pad</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🤝</span>
+      <span class="trick-card-name">Shake</span>
+      <span class="trick-card-btn">LB</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🙇</span>
+      <span class="trick-card-name">Bow</span>
+      <span class="trick-card-btn">R-Trigger</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🪑</span>
+      <span class="trick-card-name">Sit</span>
+      <span class="trick-card-btn">M1</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">💪</span>
+      <span class="trick-card-name">Push-ups</span>
+      <span class="trick-card-btn">B</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🦄</span>
+      <span class="trick-card-name">Rear Up</span>
+      <span class="trick-card-btn">RB</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🖐️</span>
+      <span class="trick-card-name">High-Five</span>
+      <span class="trick-card-btn">M2</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">💃</span>
+      <span class="trick-card-name">Tilt Dance</span>
+      <span class="trick-card-btn">A</span>
+    </div>
+    <div class="trick-card">
+      <span class="trick-card-icon">🐛</span>
+      <span class="trick-card-name">Wiggle</span>
+      <span class="trick-card-btn">L-Trigger</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:3rem;" class="reveal reveal-delay-2">
+    <div class="callout-box" data-label="Gamepad Mapping">
+      <table class="gamepad-table">
+        <thead><tr><th>Input</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>D-Pad Up / Down</td><td>Forward / Backward walk</td></tr>
+          <tr><td>D-Pad Left / Right</td><td>Turn left / Turn right</td></tr>
+          <tr><td>Y Button</td><td>Cycle height modes</td></tr>
+          <tr><td>X Button</td><td>Quit</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout-box" data-label="Posture Tuning">
+      <table class="gamepad-table">
+        <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Pitch Gain</td><td>0.8</td></tr>
+          <tr><td>Roll Gain</td><td>1.2</td></tr>
+          <tr><td>Coxa Roll Gain</td><td>8.0</td></tr>
+          <tr><td>Deadband</td><td>0.7°</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     GALLERY
+     ═══════════════════════════════════════════════ -->
+<section id="gallery">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Gallery</span>
+  <h2 class="arch-title reveal">Build Log &<br>Documentation.</h2>
+
+  <div class="gallery-grid reveal reveal-delay-1">
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-text">Robot Photo</span>
+      <div class="gallery-item-label">Full Build — Standing Pose</div>
+    </div>
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-text">Video / GIF</span>
+      <div class="gallery-item-label">Trot Gait Demo</div>
+    </div>
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-text">Robot Photo</span>
+      <div class="gallery-item-label">Electronics Bay — Top View</div>
+    </div>
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-text">Video / GIF</span>
+      <div class="gallery-item-label">Shake Trick Demo</div>
+    </div>
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-text">Robot Photo</span>
+      <div class="gallery-item-label">CAD / Blender Render</div>
+    </div>
+    <div class="gallery-item">
+      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-text">Video / GIF</span>
+      <div class="gallery-item-label">IMU Posture Stabilisation</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     TECH STACK
+     ═══════════════════════════════════════════════ -->
+<section id="stack">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Tech Stack</span>
+
+  <!-- Marquee -->
+  <div class="stack-marquee reveal">
+    <div class="stack-marquee-inner">
+      <span>Python 3.10+</span><span>NumPy</span><span>SMBus2</span><span>Pygame</span>
+      <span>Three.js</span><span>Jetson Orin Nano</span><span>Ubuntu 22.04</span>
+      <span>PCA9685</span><span>MPU6050</span><span>OrbbecSDK</span><span>GStreamer</span>
+      <span>TensorRT</span><span>OpenCV</span><span>Blender</span><span>Git</span>
+      <!-- Duplicate for seamless loop -->
+      <span>Python 3.10+</span><span>NumPy</span><span>SMBus2</span><span>Pygame</span>
+      <span>Three.js</span><span>Jetson Orin Nano</span><span>Ubuntu 22.04</span>
+      <span>PCA9685</span><span>MPU6050</span><span>OrbbecSDK</span><span>GStreamer</span>
+      <span>TensorRT</span><span>OpenCV</span><span>Blender</span><span>Git</span>
+    </div>
+  </div>
+
+  <div class="stack-grid">
+    <div class="stack-item reveal">
+      <div class="stack-item-category">Language</div>
+      <div class="stack-item-value">Pure Python</div>
+      <div class="stack-item-note">No ROS. No middleware. Every layer owned.</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-1">
+      <div class="stack-item-category">Compute</div>
+      <div class="stack-item-value">Jetson Orin Nano</div>
+      <div class="stack-item-note">Ubuntu 22.04 · All processing on-robot</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-2">
+      <div class="stack-item-category">Control Loop</div>
+      <div class="stack-item-value">50 Hz / 20ms</div>
+      <div class="stack-item-note">I2C writes are bottleneck (~8–12ms)</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-3">
+      <div class="stack-item-category">IK Engine</div>
+      <div class="stack-item-value">Exact Geometric</div>
+      <div class="stack-item-note">SpotMicro-style 3-DOF per leg · ~2ms for 4 legs</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-item-category">Depth Pipeline</div>
+      <div class="stack-item-value">Stereo + IR</div>
+      <div class="stack-item-note">Orbbec MX6800 ASIC · No CPU stereo load</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-1">
+      <div class="stack-item-category">Vision Pipeline</div>
+      <div class="stack-item-value">5 Modes</div>
+      <div class="stack-item-note">Teleop · Undistort · Detection · VO · Terrain</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-2">
+      <div class="stack-item-category">Website</div>
+      <div class="stack-item-value">Vanilla HTML/CSS/JS</div>
+      <div class="stack-item-note">Three.js for 3D · No framework · Fully owned</div>
+    </div>
+    <div class="stack-item reveal reveal-delay-3">
+      <div class="stack-item-category">Hosting</div>
+      <div class="stack-item-value">GitHub Pages / Vercel</div>
+      <div class="stack-item-note">Free tier · Static deployment</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════ -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-col-title">Project</div>
+      <a href="#architecture">Software Architecture</a>
+      <a href="#hardware">Hardware Components</a>
+      <a href="#tricks">Tricks & Gaits</a>
+      <a href="#gallery">Gallery</a>
+      <a href="https://github.com/aryasgit/quadruped" target="_blank" rel="noopener">GitHub Repository</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Credits</div>
+      <p>IK geometry — SpotMicro community</p>
+      <p>Jetson setup — NVIDIA Developer</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Connect</div>
+      <a href="https://github.com/aryasgit" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://linkedin.com/aryagupta3304" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-credit">
+      Built from scratch · No ROS · Pure Python
+    </div>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════════════ -->
+<script>
+// ─── Loading Screen ───
+(function() {
+  let pct = 0;
+  const pctEl = document.getElementById('loader-pct');
+  const fillEl = document.getElementById('loader-fill');
+  const loader = document.getElementById('loader');
+  const labels = [
+    'Initializing I2C bus...',
+    'Calibrating IMU (200 samples)...',
+    'Loading absolute truths...',
+    'Computing stand reference...',
+    'Solving IK for 4 legs...',
+    'Normalizing joint space...',
+    'Starting control loop...',
+    'Ready.'
+  ];
+  const labelEl = loader.querySelector('.loader-label');
+
+  function tick() {
+    pct += Math.random() * 12 + 2;
+    if (pct > 100) pct = 100;
+    const rounded = Math.floor(pct);
+    pctEl.textContent = rounded + '%';
+    fillEl.style.width = rounded + '%';
+    const labelIdx = Math.min(Math.floor(rounded / 14), labels.length - 1);
+    labelEl.textContent = labels[labelIdx];
+
+    if (rounded < 100) {
+      setTimeout(tick, 80 + Math.random() * 120);
+    } else {
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        document.body.style.overflow = '';
+        initReveal();
+      }, 400);
+    }
+  }
+  document.body.style.overflow = 'hidden';
+  setTimeout(tick, 300);
+})();
+
+// ─── Clock ───
+(function() {
+  const el = document.getElementById('clock');
+  function update() {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  update();
+  setInterval(update, 1000);
+})();
+
+// ─── Scroll Reveal ───
+function initReveal() {
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+  reveals.forEach(el => observer.observe(el));
+}
+
+// ─── Active Nav ───
+(function() {
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('#side-nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      const top = s.offsetTop - 200;
+      if (window.scrollY >= top) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     THREE.JS — ROBOT MODEL (DIAGNOSTIC BUILD)
+     ═══════════════════════════════════════════════ -->
+<script>
+(function () {
+  const container   = document.getElementById('hero-3d-container');
+  const canvas      = document.getElementById('hero-canvas');
+  const placeholder = document.getElementById('hero-placeholder');
+
+  console.log('[3D] Step 1: Script started');
+  console.log('[3D] Container size:', container.clientWidth, '×', container.clientHeight);
+
+  /* ── Renderer ──────────────────────────────── */
+  const renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    alpha: true,
+    antialias: true,
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.4;
+  console.log('[3D] Step 2: Renderer created');
+
+  /* ── Camera ────────────────────────────────── */
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 500);
+  camera.position.set(0, 1, 5);
+
+  /* ── Scene ─────────────────────────────────── */
+  const scene = new THREE.Scene();
+
+  /* ── Lights ────────────────────────────────── */
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+  const dir1 = new THREE.DirectionalLight(0xffffff, 2.0);
+  dir1.position.set(5, 5, 5);
+  scene.add(dir1);
+
+  const dir2 = new THREE.DirectionalLight(0xc8e8ff, 1.2);
+  dir2.position.set(-5, 3, 2);
+  scene.add(dir2);
+
+  const dir3 = new THREE.DirectionalLight(0xc8ff00, 0.6);
+  dir3.position.set(0, -2, -5);
+  scene.add(dir3);
+
+  scene.add(new THREE.HemisphereLight(0x444444, 0x111111, 0.6));
+
+  console.log('[3D] Step 3: Lights added');
+
+  /* ── TEST CUBE — proves rendering pipeline works ── */
+  const testGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+  const testMat = new THREE.MeshNormalMaterial();
+  const testCube = new THREE.Mesh(testGeo, testMat);
+  testCube.name = 'DEBUG_CUBE';
+  scene.add(testCube);
+  console.log('[3D] Step 4: Debug cube added — you should see a rainbow cube');
+
+  /* ── Controls ──────────────────────────────── */
+  const controls = new THREE.OrbitControls(camera, canvas);
+
+  // disable everything
+  controls.enabled = false;
+
+
+  /* ── Resize ────────────────────────────────── */
+  function setSize() {
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) {
+      console.warn('[3D] Container has zero size!', w, h);
+      return;
+    }
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  const ro = new ResizeObserver(() => setSize());
+  ro.observe(container);
+  setSize();
+  console.log('[3D] Step 5: Resize configured');
+
+  /* ── Animation mixer ───────────────────────── */
+  let mixer = null;
+  const clock = new THREE.Clock();
+
+  /* ── Render loop ───────────────────────────── */
+  let frameCount = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+
+    // Spin the test cube so you KNOW rendering works
+    if (testCube.parent) {
+      testCube.rotation.x += 0.01;
+      testCube.rotation.y += 0.015;
+    }
+
+    renderer.render(scene, camera);
+
+    frameCount++;
+    if (frameCount === 1) console.log('[3D] First frame rendered');
+    if (frameCount === 60) console.log('[3D] 60 frames rendered — render loop OK');
+  }
+  animate();
+  console.log('[3D] Step 6: Render loop started');
+
+  /* ── Load GLB ──────────────────────────────── */
+  console.log('[3D] Step 7: Starting GLB load from "models/robot.glb"');
+
+  const loader = new THREE.GLTFLoader();
+
+  loader.load(
+    'models/robot.glb',
+
+    /* ── SUCCESS ─────────────────────────────── */
+    function (gltf) {
+      console.log('[3D] ✅ GLB loaded successfully!');
+      console.log('[3D] Scene children:', gltf.scene.children.length);
+      console.log('[3D] Animations:', gltf.animations.length);
+
+      const model = gltf.scene;
+
+      /* --- Log all meshes and their materials --- */
+      let meshCount = 0;
+      model.traverse(function (child) {
+        if (child.isMesh) {
+          meshCount++;
+          console.log(
+            '[3D] Mesh:', child.name,
+            '| vertices:', child.geometry.attributes.position
+              ? child.geometry.attributes.position.count : '??',
+            '| material:', child.material.type,
+            '| color:', child.material.color
+              ? '#' + child.material.color.getHexString() : 'none',
+            '| metalness:', child.material.metalness,
+            '| roughness:', child.material.roughness
+          );
+        }
+      });
+      window.__BARQ_MODEL__ = model;
+      window.__BARQ_SCENE__ = scene;
+      window.__BARQ_CAMERA__ = camera;
+      window.__BARQ_RENDERER__ = renderer;
+      console.log('[3D] Total meshes found:', meshCount);
+
+      /* --- FORCE VISIBLE MATERIALS --- *
+       * Replace every material with something guaranteed visible.
+       * Option A: MeshNormalMaterial (rainbow, no lights needed)
+       * Option B: MeshPhongMaterial (classic lit, always works)
+       * 
+       * Using Option B for a nicer look:
+       */
+      model.traverse(function (child) {
+        if (child.isMesh) {
+          // Completely replace the material — no PBR, no envMap needed
+          child.material = new THREE.MeshPhongMaterial({
+            color: 0x333333,
+            specular: 0xc8ff00,
+            shininess: 60,
+            emissive: 0x0a0a0a,
+            side: THREE.DoubleSide,   // render both sides
+            flatShading: false,
+          });
+
+          // Color specific parts differently
+          const n = child.name.toLowerCase();
+          if (n.includes('body')) {
+            child.material.color.set(0x1a1a1a);
+            child.material.specular.set(0xc8ff00);
+            child.material.shininess = 80;
+          } else if (n.includes('servo') || n.includes('motor')) {
+            child.material.color.set(0x222222);
+            child.material.specular.set(0x88aaff);
+            child.material.shininess = 100;
+          } else if (n.includes('coxa') || n.includes('thigh') || n.includes('wrist')) {
+            child.material.color.set(0x2a2a2a);
+            child.material.specular.set(0xffffff);
+            child.material.shininess = 40;
+          }
+
+          child.frustumCulled = false;
+          child.material.needsUpdate = true;
+        }
+      });
+      console.log('[3D] Materials replaced with MeshPhongMaterial');
+
+      /* --- Compute bounds --- */
+      const box    = new THREE.Box3().setFromObject(model);
+      const size   = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      console.log('[3D] Raw bounding box size:', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2));
+      console.log('[3D] Raw center:', center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2));
+
+      /* --- Centre at origin --- */
+            /* --- Scale FIRST, then centre --- */
+      const maxDim = Math.max(size.x, size.y, size.z);
+      if (maxDim === 0) {
+        console.error('[3D] ❌ Model has zero size!');
+        return;
+      }
+      const s = 2.0 / maxDim;
+      model.scale.setScalar(s);
+
+      // Position must be in WORLD space (post-scale).
+      // Three.js applies: worldPos = translate + scale * localPos
+      // To move center to origin: translate = -(scale * center)
+      model.position.set(
+        -center.x * s,
+        -center.y * s,
+        -center.z * s
+      );
+
+      console.log('[3D] Scale:', s.toFixed(6));
+      console.log('[3D] Position offset:', model.position.x.toFixed(4), model.position.y.toFixed(4), model.position.z.toFixed(4));
+
+      console.log('[3D] maxDim:', maxDim.toFixed(2), '| scale factor:', s.toFixed(6));
+
+      /* --- Add to scene --- */
+      scene.add(model);
+      console.log('[3D] Model added to scene');
+
+      /* --- Verify bounds after transform --- */
+      const box2 = new THREE.Box3().setFromObject(model);
+      const size2 = new THREE.Vector3();
+      const center2 = new THREE.Vector3();
+      box2.getSize(size2);
+      box2.getCenter(center2);
+      console.log('[3D] Post-transform size:', size2.x.toFixed(3), size2.y.toFixed(3), size2.z.toFixed(3));
+      console.log('[3D] Post-transform center:', center2.x.toFixed(3), center2.y.toFixed(3), center2.z.toFixed(3));
+
+      /* --- Remove debug cube --- */
+      scene.remove(testCube);
+      testGeo.dispose();
+      testMat.dispose();
+      console.log('[3D] Debug cube removed');
+
+      /* --- Position camera --- */
+      const scaledH = size.y * s;
+      const fovRad  = THREE.MathUtils.degToRad(camera.fov / 2);
+      const dist    = (scaledH / 2) / Math.tan(fovRad) * 1.8;
+
+      camera.position.set(dist * 0.6, scaledH * 0.3, dist);
+      camera.lookAt(0, 0, 0);
+      camera.near = dist * 0.01;
+      camera.far  = dist * 20;
+      camera.updateProjectionMatrix();
+
+      controls.target.set(0, 0, 0);
+      controls.minDistance = dist * 0.2;
+      controls.maxDistance = dist * 6;
+      controls.update();
+
+      console.log('[3D] Camera at distance:', dist.toFixed(3));
+
+      /* --- Play animations --- */
+      if (gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        gltf.animations.forEach(function (clip) {
+          console.log('[3D] Playing animation:', clip.name, '| duration:', clip.duration.toFixed(2) + 's');
+          mixer.clipAction(clip).play();
+        });
+      }
+
+      /* --- Fade placeholder --- */
+      placeholder.classList.add('hidden');
+      console.log('[3D] ✅ All done — model should be visible!');
+    },
+
+    /* ── PROGRESS ────────────────────────────── */
+    function (xhr) {
+      if (xhr.lengthComputable) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        console.log('[3D] Loading:', pct + '%', '(' + (xhr.loaded/1024/1024).toFixed(1) + ' MB)');
+        const textEl = placeholder.querySelector('.placeholder-text');
+        if (textEl) textEl.textContent = 'Loading model… ' + pct + '%';
+      }
+    },
+
+    /* ── ERROR ────────────────────────────────── */
+    function (err) {
+      console.error('[3D] ❌ GLB LOAD FAILED:', err);
+      console.error('[3D] Check: Is the file at models/robot.glb relative to the HTML?');
+      console.error('[3D] Check: Are you running a local server (not file://)?');
+      console.error('[3D] Check: Open Network tab → is the request 404?');
+
+      const textEl = placeholder.querySelector('.placeholder-text');
+      if (textEl) {
+        textEl.innerHTML =
+          '<span style="color:#ff3b30;">LOAD FAILED</span><br>' +
+          'Check browser console (F12)<br>' +
+          'Is models/robot.glb accessible?';
+      }
+    }
+  );
+
+})();
+</script>
+<script src="barq-interaction.js"></script>
+</body>
+</html>

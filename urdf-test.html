@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BARQ URDF TEST</title>
+  <style>
+    body { margin:0; background:#0a0a0a; overflow:hidden; }
+  </style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/urdf-loader@0.10.4/dist/URDFLoader.js"></script>
+
+<script>
+let scene, camera, renderer, controls;
+let robot;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+let hoveredLeg = null;
+const legGroups = {};
+
+init();
+loadURDF();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 100);
+  camera.position.set(2,2,3);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+  const light = new THREE.DirectionalLight(0xffffff, 1.5);
+  light.position.set(5,5,5);
+  scene.add(light);
+
+  window.addEventListener('mousemove', e=>{
+    mouse.x = (e.clientX / innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  });
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function loadURDF() {
+  const loader = new URDFLoader();
+
+  loader.load(
+    'quadruped_robot_5/urdf/quadruped.urdf',
+
+    function (r) {
+      robot = r;
+      scene.add(robot);
+
+      // center
+      const box = new THREE.Box3().setFromObject(robot);
+      const center = box.getCenter(new THREE.Vector3());
+      robot.position.sub(center);
+
+      console.log('[URDF LOADED]', robot);
+
+      buildLegGroups();
+    }
+  );
+}
+
+function buildLegGroups() {
+  // 🔥 create wrappers per leg
+  const map = {
+    fl: [],
+    fr: [],
+    rl: [],
+    rr: []
+  };
+
+  robot.traverse(obj=>{
+    if (!obj.isMesh) return;
+
+    if (obj.name.includes('fl_')) map.fl.push(obj);
+    if (obj.name.includes('fr_')) map.fr.push(obj);
+    if (obj.name.includes('rl_')) map.rl.push(obj);
+    if (obj.name.includes('rr_')) map.rr.push(obj);
+  });
+
+  Object.keys(map).forEach(key=>{
+    const group = new THREE.Group();
+
+    map[key].forEach(mesh=>{
+      const parent = mesh.parent;
+
+      group.add(mesh);
+      parent.remove(mesh);
+    });
+
+    robot.add(group);
+
+    group.userData.originalPosition = group.position.clone();
+    legGroups[key] = group;
+  });
+
+  console.log('Leg groups:', legGroups);
+}
+
+function getHoveredLeg() {
+  raycaster.setFromCamera(mouse, camera);
+
+  const hits = raycaster.intersectObjects(scene.children, true);
+
+  if (!hits.length) return null;
+
+  const obj = hits[0].object;
+
+  for (let key in legGroups) {
+    if (legGroups[key].children.includes(obj)) {
+      return legGroups[key];
+    }
+  }
+
+  return null;
+}
+
+function animateLegs() {
+  hoveredLeg = getHoveredLeg();
+
+  Object.values(legGroups).forEach(leg=>{
+    const active = (leg === hoveredLeg);
+
+    const target = leg.userData.originalPosition.clone();
+    const scale = new THREE.Vector3(1,1,1);
+
+    if (active) {
+      target.z += 0.5;
+      target.y += 0.2;
+      scale.set(1.2,1.2,1.2);
+      leg.rotation.y += 0.02;
+    }
+
+    leg.position.lerp(target, 0.08);
+    leg.scale.lerp(scale, 0.08);
+  });
+
+  // dim others
+  robot.traverse(child=>{
+    if (child.isMesh) {
+      child.material.transparent = true;
+      child.material.opacity = 0.2;
+    }
+  });
+
+  if (hoveredLeg) {
+    hoveredLeg.traverse(child=>{
+      if (child.isMesh) child.material.opacity = 1;
+    });
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  controls.update();
+
+  if (robot) animateLegs();
+
+  renderer.render(scene, camera);
+}
+</script>
+
+</body>
+</html>

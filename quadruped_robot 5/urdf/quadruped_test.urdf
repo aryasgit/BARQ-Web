@@ -1,0 +1,214 @@
+<?xml version="1.0"?>
+<robot name="quadruped">
+
+  <!-- ================= BASE ================= -->
+  <link name="base">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/base/base.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- ================= FRONT LEFT ================= -->
+  <joint name="base_to_fl_coxa" type="revolute">
+    <parent link="base"/>
+    <child link="fl_coxa"/>
+    <origin xyz="0.130254 0.041309 0.218966" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="fl_coxa">
+    <visual>
+      <origin xyz="-0.130254 -0.041309 -0.218966" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fl/fl_coxa.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="fl_coxa_to_fl_thigh" type="revolute">
+    <parent link="fl_coxa"/>
+    <child link="fl_thigh"/>
+    <origin xyz="-0.026910 0.025690 -0.010752" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="fl_thigh">
+    <visual>
+      <origin xyz="-0.103344 -0.066999 -0.208214" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fl/fl_thigh.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="fl_thigh_to_fl_wrist" type="revolute">
+    <parent link="fl_thigh"/>
+    <child link="fl_wrist"/>
+    <origin xyz="-0.057696 0.008000 -0.090696" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="fl_wrist">
+    <visual>
+      <!-- inverse of FL wrist world origin -->
+      <origin xyz="-0.045648 -0.074999 -0.117518" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fl/fl_wrist.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- ================= FRONT RIGHT ================= -->
+  <joint name="base_to_fr_coxa" type="revolute">
+    <parent link="base"/>
+    <child link="fr_coxa"/>
+    <origin xyz="0.130254 -0.036578 0.218966" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="fr_coxa">
+    <visual>
+      <origin xyz="-0.130254 0.036578 -0.218966" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fr/fr_coxa.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="fr_coxa_to_fr_thigh" type="revolute">
+    <parent link="fr_coxa"/>
+    <child link="fr_thigh"/>
+    <origin xyz="-0.026910 -0.025691 -0.010752" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="fr_thigh">
+    <visual>
+      <origin xyz="-0.103344 0.062269 -0.208214" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fr/fr_thigh.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="fr_thigh_to_fr_wrist" type="revolute">
+    <parent link="fr_thigh"/>
+    <child link="fr_wrist"/>
+    <origin xyz="-0.057696 -0.007999 -0.090696" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="fr_wrist">
+    <visual>
+      <!-- inverse of FR wrist world origin -->
+      <origin xyz="-0.045648 0.070268 -0.117518" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/fr/fr_wrist.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- ================= REAR LEFT ================= -->
+  <joint name="base_to_rl_coxa" type="revolute">
+    <parent link="base"/>
+    <child link="rl_coxa"/>
+    <origin xyz="-0.078047 0.041309 0.218966" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="rl_coxa">
+    <visual>
+      <origin xyz="0.078047 -0.041309 -0.218966" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rl/rl_coxa.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="rl_coxa_to_rl_thigh" type="revolute">
+    <parent link="rl_coxa"/>
+    <child link="rl_thigh"/>
+    <origin xyz="-0.026910 0.025690 -0.010752" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="rl_thigh">
+    <visual>
+      <origin xyz="0.104957 -0.066999 -0.208214" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rl/rl_thigh.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="rl_thigh_to_rl_wrist" type="revolute">
+    <parent link="rl_thigh"/>
+    <child link="rl_wrist"/>
+    <origin xyz="-0.057696 0.008000 -0.090696" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="rl_wrist">
+    <visual>
+      <!-- inverse of RL wrist world origin -->
+      <origin xyz="0.162653 -0.074999 -0.117518" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rl/rl_wrist.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- ================= REAR RIGHT ================= -->
+  <joint name="base_to_rr_coxa" type="revolute">
+    <parent link="base"/>
+    <child link="rr_coxa"/>
+    <origin xyz="-0.078047 -0.036578 0.218966" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="rr_coxa">
+    <visual>
+      <origin xyz="0.078047 0.036578 -0.218966" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rr/rr_coxa.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="rr_coxa_to_rr_thigh" type="revolute">
+    <parent link="rr_coxa"/>
+    <child link="rr_thigh"/>
+    <origin xyz="-0.026910 -0.025691 -0.010752" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="rr_thigh">
+    <visual>
+      <origin xyz="0.104957 0.062269 -0.208214" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rr/rr_thigh.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="rr_thigh_to_rr_wrist" type="revolute">
+    <parent link="rr_thigh"/>
+    <child link="rr_wrist"/>
+    <origin xyz="-0.057696 -0.007999 -0.090696" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="rr_wrist">
+    <visual>
+      <!-- inverse of RR wrist world origin -->
+      <origin xyz="0.162653 0.070268 -0.117518" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="D:/quadruped_robot/robot_description/meshes/rr/rr_wrist.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+</robot>
