@@ -1653,10 +1653,13 @@ function initReveal() {
 
   /* ── Controls ──────────────────────────────── */
   const controls = new THREE.OrbitControls(camera, canvas);
-
-  // disable everything
-  controls.enabled = false;
-
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 1.5;
+  controls.addEventListener('start', () => { controls.autoRotate = false; });
+  controls.addEventListener('end',   () => { controls.autoRotate = true;  });
 
   /* ── Resize ────────────────────────────────── */
   function setSize() {
@@ -1692,6 +1695,7 @@ function initReveal() {
       testCube.rotation.y += 0.015;
     }
 
+    controls.update();
     renderer.render(scene, camera);
 
     frameCount++;
@@ -1734,10 +1738,6 @@ function initReveal() {
           );
         }
       });
-      window.__BARQ_MODEL__ = model;
-      window.__BARQ_SCENE__ = scene;
-      window.__BARQ_CAMERA__ = camera;
-      window.__BARQ_RENDERER__ = renderer;
       console.log('[3D] Total meshes found:', meshCount);
 
       /* --- FORCE VISIBLE MATERIALS --- *
@@ -1895,6 +1895,6 @@ function initReveal() {
 
 })();
 </script>
-<script src="barq-interaction.js"></script>
+
 </body>
 </html>
