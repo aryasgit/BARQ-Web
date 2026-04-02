@@ -12,8 +12,7 @@
 
 <!-- Three.js r128 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- GLTFLoader & OrbitControls from same r128 build -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/ColladaLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <style>
@@ -28,6 +27,7 @@
   --accent-dim: #5a7200;
   --red: #ff3b30;
   --blue: #0a84ff;
+  --cyan: #00f0ff;
   --grid-color: rgba(240,237,230,0.07);
   --grid-color-strong: rgba(240,237,230,0.12);
   --border-color: rgba(240,237,230,0.15);
@@ -39,9 +39,7 @@
   --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-*, *::before, *::after {
-  margin: 0; padding: 0; box-sizing: border-box;
-}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
   font-size: clamp(13px, 1.1vw, 16px);
@@ -59,16 +57,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::selection {
-  background: var(--accent);
-  color: var(--black);
-}
+::selection { background: var(--accent); color: var(--black); }
 
-a {
-  color: var(--white);
-  text-decoration: none;
-  transition: color var(--transition);
-}
+a { color: var(--white); text-decoration: none; transition: color var(--transition); }
 a:hover { color: var(--accent); }
 
 /* ═══════════════════════════════════════════════
@@ -81,814 +72,547 @@ a:hover { color: var(--accent); }
   flex-direction: column; gap: 1.5rem;
   transition: opacity 0.6s ease, visibility 0.6s ease;
 }
-#loader.hidden {
-  opacity: 0; visibility: hidden; pointer-events: none;
-}
+#loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 #loader .loader-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--grey);
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.3em; color: var(--grey);
 }
 #loader .loader-bar {
-  width: 200px; height: 1px;
-  background: var(--border-color);
-  position: relative;
-  overflow: hidden;
+  width: 200px; height: 1px; background: var(--border-color);
+  position: relative; overflow: hidden;
 }
 #loader .loader-bar-fill {
-  position: absolute; left: 0; top: 0;
-  height: 100%;
-  background: var(--accent);
-  width: 0%;
-  transition: width 0.1s linear;
+  position: absolute; left: 0; top: 0; height: 100%;
+  background: var(--accent); width: 0%; transition: width 0.1s linear;
 }
 #loader .loader-pct {
-  font-family: var(--font-mono);
-  font-size: 2.5rem;
-  font-weight: 300;
-  color: var(--white);
-  letter-spacing: -0.02em;
+  font-family: var(--font-mono); font-size: 2.5rem; font-weight: 300;
+  color: var(--white); letter-spacing: -0.02em;
 }
 
 /* ═══════════════════════════════════════════════
    GRID OVERLAY (decorative)
    ═══════════════════════════════════════════════ */
 .grid-overlay {
-  position: fixed; inset: 0; z-index: 1;
-  pointer-events: none;
-  display: flex;
-  padding: 0 var(--grid-margin);
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; padding: 0 var(--grid-margin);
 }
-.grid-overlay .grid-col {
-  flex: 1;
-  border-left: 1px solid var(--grid-color);
-}
-.grid-overlay .grid-col:last-child {
-  border-right: 1px solid var(--grid-color);
-}
+.grid-overlay .grid-col { flex: 1; border-left: 1px solid var(--grid-color); }
+.grid-overlay .grid-col:last-child { border-right: 1px solid var(--grid-color); }
 
 /* ═══════════════════════════════════════════════
    HEADER / NAV
    ═══════════════════════════════════════════════ */
 header {
-  position: fixed; top: 0; left: 0; right: 0;
-  z-index: 100;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   padding: var(--grid-margin);
   display: flex; justify-content: space-between; align-items: flex-start;
   mix-blend-mode: difference;
 }
 .header-logo {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  line-height: 1.2;
+  font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.25em; line-height: 1.2;
 }
 .header-logo span {
-  display: block;
-  color: var(--grey);
-  font-size: 0.55rem;
-  letter-spacing: 0.15em;
-  margin-top: 0.2em;
+  display: block; color: var(--grey); font-size: 0.55rem;
+  letter-spacing: 0.15em; margin-top: 0.2em;
 }
 .header-clock {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  text-align: right;
-  color: var(--grey);
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.15em; text-align: right; color: var(--grey);
 }
 .header-clock .clock-time {
-  color: var(--white);
-  font-size: 0.75rem;
-  display: block;
-  margin-top: 0.15em;
+  color: var(--white); font-size: 0.75rem; display: block; margin-top: 0.15em;
 }
 
 nav {
   position: fixed; right: var(--grid-margin); top: 50%;
-  transform: translateY(-50%);
-  z-index: 100;
+  transform: translateY(-50%); z-index: 100;
   display: flex; flex-direction: column; gap: 0.8rem;
   mix-blend-mode: difference;
 }
 nav a {
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--grey);
-  writing-mode: vertical-lr;
-  transition: color var(--transition);
-  position: relative;
+  font-family: var(--font-mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.2em; color: var(--grey);
+  writing-mode: vertical-lr; transition: color var(--transition); position: relative;
 }
-nav a:hover, nav a.active {
-  color: var(--accent);
-}
+nav a:hover, nav a.active { color: var(--accent); }
 nav a.active::before {
-  content: '';
-  position: absolute;
-  left: -6px; top: 0;
-  width: 2px; height: 100%;
-  background: var(--accent);
+  content: ''; position: absolute; left: -6px; top: 0;
+  width: 2px; height: 100%; background: var(--accent);
 }
 
 /* ═══════════════════════════════════════════════
    SECTION UTILITIES
    ═══════════════════════════════════════════════ */
-section {
-  position: relative;
-  padding: 0 var(--grid-margin);
-  z-index: 2;
-}
+section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
 .section-label {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  background: var(--black);
-  color: var(--white);
-  padding: 0.3em 0.6em;
-  border: 1px solid var(--border-color);
-  border-radius: var(--br);
-  margin-bottom: 1.5rem;
+  display: inline-block; font-family: var(--font-mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.3em; background: var(--black);
+  color: var(--white); padding: 0.3em 0.6em; border: 1px solid var(--border-color);
+  border-radius: var(--br); margin-bottom: 1.5rem;
 }
 .callout-box {
-  background: rgba(10,10,10,0.85);
-  border: 1px solid var(--border-color);
-  padding: 1.2em 1.5em;
-  position: relative;
-  backdrop-filter: blur(10px);
+  background: rgba(10,10,10,0.85); border: 1px solid var(--border-color);
+  padding: 1.2em 1.5em; position: relative; backdrop-filter: blur(10px);
 }
 .callout-box::before {
-  content: attr(data-label);
-  position: absolute; top: -0.6em; left: 1em;
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  background: var(--black);
-  color: var(--accent);
-  padding: 0 0.5em;
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--br);
+  content: attr(data-label); position: absolute; top: -0.6em; left: 1em;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.25em; background: var(--black); color: var(--accent);
+  padding: 0 0.5em; border: 1px solid var(--accent-dim); border-radius: var(--br);
 }
 .tag {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 0.2em 0.7em;
-  color: var(--grey);
-  transition: all var(--transition);
+  display: inline-block; font-family: var(--font-mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.15em; border: 1px solid var(--border-color);
+  border-radius: 999px; padding: 0.2em 0.7em; color: var(--grey); transition: all var(--transition);
 }
-.tag:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.divider {
-  width: 100%; height: 1px;
-  background: var(--border-color);
-  margin: 0;
-}
+.tag:hover { border-color: var(--accent); color: var(--accent); }
+.divider { width: 100%; height: 1px; background: var(--border-color); margin: 0; }
 
 /* ═══════════════════════════════════════════════
    HERO SECTION
    ═══════════════════════════════════════════════ */
 #hero {
-  min-height: 100svh;
-  display: flex; flex-direction: column;
+  min-height: 100svh; display: flex; flex-direction: column;
   justify-content: space-between;
-  padding-top: calc(var(--grid-margin) * 3);
-  padding-bottom: var(--grid-margin);
-  position: relative;
-  overflow: hidden;
+  padding-top: calc(var(--grid-margin) * 3); padding-bottom: var(--grid-margin);
+  position: relative; overflow: hidden;
 }
 .hero-top {
-  display: flex; justify-content: space-between;
-  align-items: flex-start;
+  display: flex; justify-content: space-between; align-items: flex-start;
   flex-wrap: wrap; gap: 2rem;
 }
-.hero-title-block {
-  max-width: 50%;
-}
+.hero-title-block { max-width: 50%; }
 .hero-title {
-  font-family: var(--font-mono);
-  font-size: clamp(2.2rem, 5vw, 4.5rem);
-  font-weight: 300;
-  text-transform: uppercase;
-  letter-spacing: -0.03em;
-  line-height: 0.95;
+  font-family: var(--font-mono); font-size: clamp(2.2rem, 5vw, 4.5rem);
+  font-weight: 300; text-transform: uppercase; letter-spacing: -0.03em; line-height: 0.95;
 }
-.hero-title em {
-  font-style: normal;
-  color: var(--accent);
-}
+.hero-title em { font-style: normal; color: var(--accent); }
 .hero-subtitle {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--grey);
-  margin-top: 1.5rem;
-  max-width: 420px;
-  line-height: 1.6;
+  font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--grey); margin-top: 1.5rem;
+  max-width: 420px; line-height: 1.6;
 }
 
-/* 3D Canvas Area */
+/* 3D Canvas Area — ENLARGED */
 .hero-3d-container {
-  position: absolute;
-  top: 50%; left: 50%;
+  position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: min(70vw, 70vh);
-  height: min(70vw, 70vh);
-  z-index: 0;
-  pointer-events: auto;
+  width: min(88vw, 88vh);
+  height: min(88vw, 88vh);
+  z-index: 0; pointer-events: auto;
 }
 #hero-canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-  position: absolute;
-  top: 0; left: 0;
+  width: 100% !important; height: 100% !important;
+  display: block; position: absolute; top: 0; left: 0;
 }
-/* Placeholder shown while model loads */
+
 .hero-3d-placeholder {
-  width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 1rem;
-  border: 1px dashed var(--border-color);
-  border-radius: 50%;
-  position: absolute;
-  top: 0; left: 0;
-  z-index: 1;
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1rem; border: 1px dashed var(--border-color);
+  border-radius: 50%; position: absolute; top: 0; left: 0; z-index: 1;
   transition: opacity 0.6s ease;
 }
-.hero-3d-placeholder.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-.hero-3d-placeholder .placeholder-icon {
-  font-size: 4rem;
-  opacity: 0.3;
-  animation: float 4s ease-in-out infinite;
-}
+.hero-3d-placeholder.hidden { opacity: 0; pointer-events: none; }
 .hero-3d-placeholder .placeholder-text {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--grey);
-  text-align: center;
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-15px) rotate(2deg); }
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: var(--grey); text-align: center;
 }
 
-.hero-callout-right {
-  max-width: 300px;
-  text-align: right;
-}
+.hero-callout-right { max-width: 300px; text-align: right; }
 
-/* Hero bottom bar */
 .hero-bottom {
-  display: flex; justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap; gap: 1rem;
-  position: relative; z-index: 2;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 1rem; position: relative; z-index: 2;
 }
-.hero-threads {
-  max-width: 380px;
-}
+.hero-threads { max-width: 380px; }
 .hero-threads-title {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--accent);
-  background: var(--black);
-  display: inline-block;
-  padding: 0.3em 0.6em;
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--br);
-  margin-bottom: 0.8rem;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: var(--accent); background: var(--black);
+  display: inline-block; padding: 0.3em 0.6em; border: 1px solid var(--accent-dim);
+  border-radius: var(--br); margin-bottom: 0.8rem;
 }
 .hero-threads ol {
-  list-style: none; counter-reset: threads;
-  display: flex; flex-direction: column; gap: 0.4rem;
+  list-style: none; counter-reset: threads; display: flex; flex-direction: column; gap: 0.4rem;
 }
 .hero-threads ol li {
-  counter-increment: threads;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--white);
+  counter-increment: threads; font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--white);
   display: flex; align-items: baseline; gap: 0.6em;
 }
 .hero-threads ol li::before {
-  content: "0" counter(threads) ".";
-  font-size: 0.5rem;
-  color: var(--grey);
-  background: var(--black);
-  border: 1px solid var(--border-color);
-  border-radius: var(--br);
-  padding: 0.15em 0.4em;
-  clip-path: polygon(0% 0, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+  content: "0" counter(threads) "."; font-size: 0.5rem; color: var(--grey);
+  background: var(--black); border: 1px solid var(--border-color); border-radius: var(--br);
+  padding: 0.15em 0.4em; clip-path: polygon(0% 0, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
   padding-right: 0.7em;
 }
-.hero-cta-row {
-  display: flex; gap: 0.8rem; align-items: center;
-}
+.hero-cta-row { display: flex; gap: 0.8rem; align-items: center; }
 .hero-cta-row a {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 0.4em 1.2em;
-  transition: all var(--transition);
+  font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.15em; border: 1px solid var(--border-color); border-radius: 999px;
+  padding: 0.4em 1.2em; transition: all var(--transition);
 }
 .hero-cta-row a:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent); color: var(--accent);
   box-shadow: 0 0 20px rgba(200,255,0,0.1);
 }
 
-/* Leader line SVG decorations */
-.leader-line {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
+/* ═══════════════════════════════════════════════
+   INFO PANEL OVERLAY (cyberpunk leader lines)
+   ═══════════════════════════════════════════════ */
+#info-overlay {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
 }
+#info-overlay svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+.info-panel {
+  position: absolute; pointer-events: none;
+  opacity: 0; transition: opacity 0.4s ease;
+  font-family: var(--font-mono);
+}
+.info-panel.visible { opacity: 1; }
+.info-panel-box {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid var(--accent);
+  padding: 12px 16px;
+  min-width: 210px; max-width: 290px;
+  backdrop-filter: blur(12px);
+  position: relative;
+}
+.info-panel-box::before {
+  content: '';
+  position: absolute; top: -1px; left: -1px;
+  width: calc(100% + 2px); height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 20px rgba(200,255,0,0.3);
+}
+.info-panel-box::after {
+  content: '';
+  position: absolute; bottom: -1px; right: -1px;
+  width: 40%; height: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.info-panel-name {
+  font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--accent);
+  margin-bottom: 6px; font-weight: 500;
+}
+.info-panel-type {
+  font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.25em; color: var(--cyan);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.info-panel-type::before {
+  content: ''; width: 4px; height: 4px;
+  background: var(--cyan); border-radius: 50%;
+  box-shadow: 0 0 6px var(--cyan);
+  display: inline-block;
+}
+.info-row {
+  display: flex; justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(240,237,230,0.06);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row-label {
+  font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey);
+}
+.info-row-value {
+  font-size: 0.5rem; color: var(--white);
+  text-align: right;
+}
+
+/* Hover hint */
+.hover-hint {
+  position: absolute; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 0.5rem;
+  text-transform: uppercase; letter-spacing: 0.3em;
+  color: var(--grey); z-index: 5;
+  transition: opacity 0.4s ease;
+  display: flex; align-items: center; gap: 8px;
+}
+.hover-hint .hint-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); opacity: 0.6;
+  animation: pulse-hint 2s ease-in-out infinite;
+}
+@keyframes pulse-hint {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+.hover-hint.hidden { opacity: 0; }
+
+/* Scanline effect on canvas */
+.hero-3d-container::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,240,255,0.008) 2px, rgba(0,240,255,0.008) 4px
+  );
+  pointer-events: none; z-index: 2;
+  opacity: 0; transition: opacity 0.5s ease;
+}
+.hero-3d-container.part-selected::after { opacity: 1; }
 
 /* ═══════════════════════════════════════════════
    ABOUT SECTION
    ═══════════════════════════════════════════════ */
-#about {
-  padding-top: 8rem;
-  padding-bottom: 6rem;
-}
+#about { padding-top: 8rem; padding-bottom: 6rem; }
 .about-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: start;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 3rem; align-items: start;
 }
 .about-main-text {
-  font-size: 1.15rem;
-  line-height: 1.7;
-  font-weight: 300;
-  max-width: 540px;
+  font-size: 1.15rem; line-height: 1.7; font-weight: 300; max-width: 540px;
 }
-.about-main-text strong {
-  color: var(--accent);
-  font-weight: 400;
-}
-.about-right {
-  display: flex; flex-direction: column; gap: 2rem;
-}
-.about-stat-row {
-  display: flex; gap: 1.5rem; flex-wrap: wrap;
-}
-.about-stat {
-  flex: 1; min-width: 120px;
-}
+.about-main-text strong { color: var(--accent); font-weight: 400; }
+.about-right { display: flex; flex-direction: column; gap: 2rem; }
+.about-stat-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.about-stat { flex: 1; min-width: 120px; }
 .about-stat .stat-value {
-  font-family: var(--font-mono);
-  font-size: 1.8rem;
-  font-weight: 300;
-  color: var(--accent);
-  line-height: 1;
+  font-family: var(--font-mono); font-size: 1.8rem; font-weight: 300;
+  color: var(--accent); line-height: 1;
 }
 .about-stat .stat-label {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--grey);
-  margin-top: 0.3em;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--grey); margin-top: 0.3em;
 }
 
 /* ═══════════════════════════════════════════════
    ARCHITECTURE SECTION
    ═══════════════════════════════════════════════ */
-#architecture {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
+#architecture { padding-top: 6rem; padding-bottom: 6rem; }
 .arch-title {
-  font-family: var(--font-mono);
-  font-size: clamp(1.5rem, 3vw, 2.5rem);
-  font-weight: 300;
-  text-transform: uppercase;
-  letter-spacing: -0.02em;
-  margin-bottom: 3rem;
+  font-family: var(--font-mono); font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 300; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 3rem;
 }
 .arch-layers {
-  display: flex; flex-direction: column;
-  gap: 0;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid var(--border-color); overflow: hidden;
 }
 .arch-layer {
-  display: grid;
-  grid-template-columns: 80px 1fr 1fr;
+  display: grid; grid-template-columns: 80px 1fr 1fr;
   border-bottom: 1px solid var(--border-color);
-  transition: background var(--transition);
-  cursor: default;
+  transition: background var(--transition); cursor: default;
 }
 .arch-layer:last-child { border-bottom: none; }
-.arch-layer:hover {
-  background: rgba(200,255,0,0.03);
-}
+.arch-layer:hover { background: rgba(200,255,0,0.03); }
 .arch-layer-num {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--accent);
-  padding: 1em;
-  border-right: 1px solid var(--border-color);
+  font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);
+  padding: 1em; border-right: 1px solid var(--border-color);
   display: flex; align-items: center; justify-content: center;
 }
 .arch-layer-name {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 1em 1.2em;
-  border-right: 1px solid var(--border-color);
-  display: flex; align-items: center;
+  font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.1em; padding: 1em 1.2em;
+  border-right: 1px solid var(--border-color); display: flex; align-items: center;
 }
 .arch-layer-desc {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--grey);
-  padding: 1em 1.2em;
-  display: flex; align-items: center;
-  line-height: 1.5;
+  font-family: var(--font-mono); font-size: 0.6rem; color: var(--grey);
+  padding: 1em 1.2em; display: flex; align-items: center; line-height: 1.5;
 }
-.arch-layer-file {
-  color: var(--accent-dim);
-}
+.arch-layer-file { color: var(--accent-dim); }
 
 /* Data flow arrow strip */
 .data-flow {
-  margin-top: 3rem;
-  display: flex; align-items: center;
-  gap: 0;
-  flex-wrap: wrap;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
+  margin-top: 3rem; display: flex; align-items: center; gap: 0;
+  flex-wrap: wrap; border: 1px solid var(--border-color); overflow: hidden;
 }
 .data-flow-step {
-  flex: 1; min-width: 100px;
-  padding: 0.8em 1em;
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  text-align: center;
-  border-right: 1px solid var(--border-color);
-  position: relative;
-  color: var(--white);
-  transition: background var(--transition);
+  flex: 1; min-width: 100px; padding: 0.8em 1em;
+  font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase;
+  letter-spacing: 0.1em; text-align: center;
+  border-right: 1px solid var(--border-color); position: relative;
+  color: var(--white); transition: background var(--transition);
 }
 .data-flow-step:last-child { border-right: none; }
-.data-flow-step:hover {
-  background: rgba(200,255,0,0.05);
-  color: var(--accent);
-}
+.data-flow-step:hover { background: rgba(200,255,0,0.05); color: var(--accent); }
 .data-flow-step::after {
-  content: '→';
-  position: absolute; right: -0.5em; top: 50%;
-  transform: translateY(-50%);
-  color: var(--accent-dim);
-  font-size: 0.8rem;
-  z-index: 2;
+  content: '\2192'; position: absolute; right: -0.5em; top: 50%;
+  transform: translateY(-50%); color: var(--accent-dim); font-size: 0.8rem; z-index: 2;
 }
 .data-flow-step:last-child::after { display: none; }
 
 /* ═══════════════════════════════════════════════
    HARDWARE SECTION
    ═══════════════════════════════════════════════ */
-#hardware {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
+#hardware { padding-top: 6rem; padding-bottom: 6rem; }
 .hw-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--grid-gutter);
 }
 .hw-card {
-  border: 1px solid var(--border-color);
-  padding: 1.5em;
-  position: relative;
-  transition: all var(--transition);
+  border: 1px solid var(--border-color); padding: 1.5em;
+  position: relative; transition: all var(--transition);
 }
 .hw-card:hover {
   border-color: var(--accent-dim);
   box-shadow: 0 0 30px rgba(200,255,0,0.03);
 }
 .hw-card-header {
-  display: flex; justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;
 }
 .hw-card-name {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
+  font-family: var(--font-mono); font-size: 0.75rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
 }
 .hw-card-tag {
-  font-family: var(--font-mono);
-  font-size: 0.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--accent);
-  border: 1px solid var(--accent-dim);
-  padding: 0.15em 0.5em;
-  border-radius: var(--br);
+  font-family: var(--font-mono); font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--accent); border: 1px solid var(--accent-dim);
+  padding: 0.15em 0.5em; border-radius: var(--br);
 }
 .hw-card-value {
-  font-family: var(--font-mono);
-  font-size: 1.3rem;
-  font-weight: 300;
-  color: var(--white);
-  margin-bottom: 0.3rem;
+  font-family: var(--font-mono); font-size: 1.3rem; font-weight: 300;
+  color: var(--white); margin-bottom: 0.3rem;
 }
 .hw-card-detail {
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  color: var(--grey);
-  line-height: 1.6;
+  font-family: var(--font-mono); font-size: 0.55rem; color: var(--grey); line-height: 1.6;
 }
 
 /* ═══════════════════════════════════════════════
    BODY DIMENSIONS SECTION
    ═══════════════════════════════════════════════ */
-#dimensions {
-  padding-top: 4rem;
-  padding-bottom: 6rem;
-}
+#dimensions { padding-top: 4rem; padding-bottom: 6rem; }
 .dims-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;
 }
 .dims-visual {
-  position: relative;
-  border: 1px solid var(--border-color);
-  padding: 2rem;
-  aspect-ratio: 4/3;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
+  position: relative; border: 1px solid var(--border-color); padding: 2rem;
+  aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .dims-visual .dims-placeholder {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--grey);
-  text-align: center;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: var(--grey); text-align: center;
 }
 .dims-visual .dims-placeholder .dims-icon {
-  font-size: 5rem;
-  display: block;
-  margin-bottom: 1rem;
-  opacity: 0.15;
-  filter: grayscale(1);
+  font-size: 5rem; display: block; margin-bottom: 1rem; opacity: 0.15; filter: grayscale(1);
 }
-.dims-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.dims-table tr {
-  border-bottom: 1px solid var(--border-color);
-}
+.dims-table { width: 100%; border-collapse: collapse; }
+.dims-table tr { border-bottom: 1px solid var(--border-color); }
 .dims-table td {
-  font-family: var(--font-mono);
-  padding: 0.6em 0;
-  vertical-align: top;
+  font-family: var(--font-mono); padding: 0.6em 0; vertical-align: top;
 }
 .dims-table td:first-child {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--grey);
-  width: 55%;
+  font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--grey); width: 55%;
 }
 .dims-table td:last-child {
-  font-size: 0.8rem;
-  color: var(--accent);
-  text-align: right;
-  font-weight: 400;
+  font-size: 0.8rem; color: var(--accent); text-align: right; font-weight: 400;
 }
 
 /* ═══════════════════════════════════════════════
    TRICKS & GAITS SECTION
    ═══════════════════════════════════════════════ */
-#tricks {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
+#tricks { padding-top: 6rem; padding-bottom: 6rem; }
 .tricks-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--grid-gutter);
-  margin-top: 2rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--grid-gutter); margin-top: 2rem;
 }
 .trick-card {
-  border: 1px solid var(--border-color);
-  padding: 1em;
-  text-align: center;
-  transition: all var(--transition);
-  cursor: default;
-  position: relative;
-  overflow: hidden;
+  border: 1px solid var(--border-color); padding: 1em; text-align: center;
+  transition: all var(--transition); cursor: default; position: relative; overflow: hidden;
 }
 .trick-card::before {
-  content: '';
-  position: absolute; inset: 0;
+  content: ''; position: absolute; inset: 0;
   background: linear-gradient(135deg, rgba(200,255,0,0.05) 0%, transparent 60%);
-  opacity: 0;
-  transition: opacity var(--transition);
+  opacity: 0; transition: opacity var(--transition);
 }
 .trick-card:hover::before { opacity: 1; }
 .trick-card:hover { border-color: var(--accent-dim); }
-.trick-card-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.4rem;
-  display: block;
-}
+.trick-card-icon { font-size: 1.8rem; margin-bottom: 0.4rem; display: block; }
 .trick-card-name {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--white);
+  font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--white);
 }
 .trick-card-btn {
-  font-family: var(--font-mono);
-  font-size: 0.4rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--grey);
-  margin-top: 0.3em;
-  display: block;
+  font-family: var(--font-mono); font-size: 0.4rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey); margin-top: 0.3em; display: block;
 }
 
-/* Gamepad mapping table */
-.gamepad-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 2rem;
-}
+.gamepad-table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
 .gamepad-table th {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--accent);
-  text-align: left;
-  padding: 0.6em 0;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--accent); text-align: left; padding: 0.6em 0;
   border-bottom: 1px solid var(--accent-dim);
 }
 .gamepad-table td {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  padding: 0.5em 0;
+  font-family: var(--font-mono); font-size: 0.6rem; padding: 0.5em 0;
   border-bottom: 1px solid var(--border-color);
 }
-.gamepad-table td:first-child {
-  color: var(--white);
-  width: 40%;
-}
-.gamepad-table td:last-child {
-  color: var(--grey);
-}
+.gamepad-table td:first-child { color: var(--white); width: 40%; }
+.gamepad-table td:last-child { color: var(--grey); }
 
 /* ═══════════════════════════════════════════════
    GALLERY / MEDIA SECTION
    ═══════════════════════════════════════════════ */
-#gallery {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
+#gallery { padding-top: 6rem; padding-bottom: 6rem; }
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--grid-gutter);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--grid-gutter);
 }
 .gallery-item {
-  aspect-ratio: 4/3;
-  border: 1px solid var(--border-color);
+  aspect-ratio: 4/3; border: 1px solid var(--border-color);
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 0.5rem;
-  position: relative;
-  overflow: hidden;
+  flex-direction: column; gap: 0.5rem; position: relative; overflow: hidden;
   transition: border-color var(--transition);
 }
-.gallery-item:hover {
-  border-color: var(--accent-dim);
-}
-.gallery-item .gallery-placeholder-icon {
-  font-size: 2rem;
-  opacity: 0.2;
-}
+.gallery-item:hover { border-color: var(--accent-dim); }
+.gallery-item .gallery-placeholder-icon { font-size: 2rem; opacity: 0.2; }
 .gallery-item .gallery-placeholder-text {
-  font-family: var(--font-mono);
-  font-size: 0.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  color: var(--grey);
+  font-family: var(--font-mono); font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.25em; color: var(--grey);
 }
 .gallery-item-label {
   position: absolute; bottom: 0; left: 0; right: 0;
-  padding: 0.6em 0.8em;
-  background: rgba(10,10,10,0.9);
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--grey);
-  border-top: 1px solid var(--border-color);
-  backdrop-filter: blur(5px);
+  padding: 0.6em 0.8em; background: rgba(10,10,10,0.9);
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey);
+  border-top: 1px solid var(--border-color); backdrop-filter: blur(5px);
 }
 
 /* ═══════════════════════════════════════════════
    TECH STACK SECTION
    ═══════════════════════════════════════════════ */
-#stack {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
+#stack { padding-top: 6rem; padding-bottom: 6rem; }
 .stack-marquee {
-  overflow: hidden;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0.6em 0;
-  margin-bottom: 3rem;
+  overflow: hidden; border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color); padding: 0.6em 0; margin-bottom: 3rem;
 }
 .stack-marquee-inner {
-  display: flex; gap: 3rem;
-  white-space: nowrap;
-  animation: marquee 30s linear infinite;
-  width: max-content;
+  display: flex; gap: 3rem; white-space: nowrap;
+  animation: marquee 30s linear infinite; width: max-content;
 }
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 .stack-marquee-inner span {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--grey);
+  font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--grey);
 }
 .stack-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--grid-gutter);
 }
 .stack-item {
-  border: 1px solid var(--border-color);
-  padding: 1.2em;
+  border: 1px solid var(--border-color); padding: 1.2em;
   transition: all var(--transition);
 }
-.stack-item:hover {
-  border-color: var(--accent-dim);
-}
+.stack-item:hover { border-color: var(--accent-dim); }
 .stack-item-category {
-  font-family: var(--font-mono);
-  font-size: 0.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  color: var(--accent);
-  margin-bottom: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.45rem; text-transform: uppercase;
+  letter-spacing: 0.25em; color: var(--accent); margin-bottom: 0.5rem;
 }
-.stack-item-value {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--white);
-}
+.stack-item-value { font-family: var(--font-mono); font-size: 0.75rem; color: var(--white); }
 .stack-item-note {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  color: var(--grey);
-  margin-top: 0.3rem;
+  font-family: var(--font-mono); font-size: 0.5rem; color: var(--grey); margin-top: 0.3rem;
 }
 
 /* ═══════════════════════════════════════════════
@@ -896,59 +620,38 @@ section {
    ═══════════════════════════════════════════════ */
 footer {
   padding: 4rem var(--grid-margin) 2rem;
-  border-top: 1px solid var(--border-color);
-  position: relative; z-index: 2;
+  border-top: 1px solid var(--border-color); position: relative; z-index: 2;
 }
 .footer-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 3rem;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 3rem;
 }
 .footer-col-title {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  color: var(--accent);
-  margin-bottom: 1rem;
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.25em; color: var(--accent); margin-bottom: 1rem;
 }
 .footer-col a, .footer-col p {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--grey);
-  margin-bottom: 0.4rem;
-  line-height: 1.4;
+  display: block; font-family: var(--font-mono); font-size: 0.6rem;
+  color: var(--grey); margin-bottom: 0.4rem; line-height: 1.4;
 }
 .footer-bottom {
-  display: flex; justify-content: space-between;
-  align-items: center;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 1.5rem; border-top: 1px solid var(--border-color);
 }
 .footer-credit {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  color: var(--grey);
-  letter-spacing: 0.1em;
+  font-family: var(--font-mono); font-size: 0.5rem; color: var(--grey); letter-spacing: 0.1em;
 }
 .footer-credit a { color: var(--accent-dim); }
 .footer-credit a:hover { color: var(--accent); }
 
 /* ═══════════════════════════════════════════════
-   SCROLL REVEAL ANIMATIONS
+   SCROLL REVEAL
    ═══════════════════════════════════════════════ */
 .reveal {
-  opacity: 0;
-  transform: translateY(30px);
+  opacity: 0; transform: translateY(30px);
   transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
               transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+.reveal.visible { opacity: 1; transform: translateY(0); }
 .reveal-delay-1 { transition-delay: 0.1s; }
 .reveal-delay-2 { transition-delay: 0.2s; }
 .reveal-delay-3 { transition-delay: 0.3s; }
@@ -966,7 +669,7 @@ footer {
   .arch-layer { grid-template-columns: 60px 1fr; }
   .arch-layer-desc { display: none; }
   nav { display: none; }
-  .hero-3d-container { width: 90vw; height: 60vw; }
+  .hero-3d-container { width: 95vw; height: 70vw; }
 }
 @media (max-width: 600px) {
   .gallery-grid { grid-template-columns: 1fr; }
@@ -987,7 +690,7 @@ footer {
   <div class="loader-bar">
     <div class="loader-bar-fill" id="loader-fill"></div>
   </div>
-  <div class="loader-label">IMU → IK → Servo</div>
+  <div class="loader-label" id="loader-status">IMU → IK → Servo</div>
 </div>
 
 <!-- ═══════ GRID OVERLAY ═══════ -->
@@ -1044,13 +747,26 @@ footer {
     </div>
   </div>
 
-  <!-- 3D Robot container — placeholder fades out when GLB is ready -->
+  <!-- 3D Robot container -->
   <div class="hero-3d-container" id="hero-3d-container">
     <div class="hero-3d-placeholder" id="hero-placeholder">
-      <span class="placeholder-icon">🦿</span>
-      <span class="placeholder-text">Loading Robot Model…<br>[ robot.glb ]</span>
+      <span class="placeholder-text">Assembling URDF...<br>[ 13 links · 12 joints ]</span>
     </div>
     <canvas id="hero-canvas"></canvas>
+    <div id="info-overlay">
+      <svg id="leader-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="info-panel" id="info-panel">
+        <div class="info-panel-box">
+          <div class="info-panel-name" id="ip-name">--</div>
+          <div class="info-panel-type" id="ip-type">--</div>
+          <div id="ip-rows"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hover-hint" id="hover-hint">
+      <span class="hint-dot"></span>
+      Hover to inspect · Click to lock
+    </div>
   </div>
 
   <div class="hero-bottom">
@@ -1143,7 +859,7 @@ footer {
     <div class="arch-layer">
       <div class="arch-layer-num">L2</div>
       <div class="arch-layer-name">Joint Space <span class="arch-layer-file" style="margin-left:auto;opacity:0.5;">joints/space.py</span></div>
-      <div class="arch-layer-desc">IK deltas → physical servo angles (0–270°). Math world ends here, hardware begins</div>
+      <div class="arch-layer-desc">IK deltas → physical servo angles (0-270 deg). Math world ends here, hardware begins</div>
     </div>
     <div class="arch-layer">
       <div class="arch-layer-num">L1</div>
@@ -1157,15 +873,14 @@ footer {
     </div>
   </div>
 
-  <!-- Data Flow Strip -->
   <div class="data-flow reveal reveal-delay-2">
     <div class="data-flow-step">Gait Gen<br><span style="color:var(--grey);font-size:0.45rem;">foot targets</span></div>
     <div class="data-flow-step">Posture<br><span style="color:var(--grey);font-size:0.45rem;">+ IMU comp</span></div>
     <div class="data-flow-step">IK Solver<br><span style="color:var(--grey);font-size:0.45rem;">joint deltas</span></div>
     <div class="data-flow-step">Conventions<br><span style="color:var(--grey);font-size:0.45rem;">sign correct</span></div>
-    <div class="data-flow-step">Joint Space<br><span style="color:var(--grey);font-size:0.45rem;">0–270°</span></div>
-    <div class="data-flow-step">PCA9685<br><span style="color:var(--grey);font-size:0.45rem;">PWM 106–535</span></div>
-    <div class="data-flow-step" style="color:var(--accent);">Servos<br><span style="font-size:0.45rem;">⚡ motion</span></div>
+    <div class="data-flow-step">Joint Space<br><span style="color:var(--grey);font-size:0.45rem;">0-270 deg</span></div>
+    <div class="data-flow-step">PCA9685<br><span style="color:var(--grey);font-size:0.45rem;">PWM 106-535</span></div>
+    <div class="data-flow-step" style="color:var(--accent);">Servos<br><span style="font-size:0.45rem;">motion</span></div>
   </div>
 </section>
 
@@ -1192,15 +907,15 @@ footer {
         <div class="hw-card-tag">PWM</div>
       </div>
       <div class="hw-card-value">PCA9685</div>
-      <div class="hw-card-detail">I2C address 0x40 · 12-bit PWM · Channels 0–11 · 106–535 pwm range</div>
+      <div class="hw-card-detail">I2C address 0x40 · 12-bit PWM · Channels 0-11 · 106-535 pwm range</div>
     </div>
     <div class="hw-card reveal reveal-delay-2">
       <div class="hw-card-header">
         <div class="hw-card-name">Servos</div>
-        <div class="hw-card-tag">×12</div>
+        <div class="hw-card-tag">x12</div>
       </div>
       <div class="hw-card-value">DS3240 MG</div>
-      <div class="hw-card-detail">270° travel · 4 coxa + 4 thigh + 4 wrist · Calibrated via tkinter GUI</div>
+      <div class="hw-card-detail">270 deg travel · 4 coxa + 4 thigh + 4 wrist · Calibrated via tkinter GUI</div>
     </div>
     <div class="hw-card reveal reveal-delay-3">
       <div class="hw-card-header">
@@ -1224,7 +939,7 @@ footer {
         <div class="hw-card-tag">Wide</div>
       </div>
       <div class="hw-card-value">Arducam IMX219</div>
-      <div class="hw-card-detail">220° fisheye · CSI interface · GStreamer pipeline · Lens calibration required for CV</div>
+      <div class="hw-card-detail">220 deg fisheye · CSI interface · GStreamer pipeline · Lens calibration required for CV</div>
     </div>
     <div class="hw-card reveal reveal-delay-2">
       <div class="hw-card-header">
@@ -1239,7 +954,7 @@ footer {
         <div class="hw-card-name">Display</div>
         <div class="hw-card-tag">OLED</div>
       </div>
-      <div class="hw-card-value">SH1106 128×64</div>
+      <div class="hw-card-value">SH1106 128x64</div>
       <div class="hw-card-detail">I2C address 0x3C · Same bus as PCA9685 + IMU · Telemetry display (WIP)</div>
     </div>
   </div>
@@ -1255,7 +970,7 @@ footer {
   <div class="dims-layout">
     <div class="dims-visual reveal">
       <div class="dims-placeholder">
-        <span class="dims-icon">📐</span>
+        <span class="dims-icon"></span>
         Robot side-view diagram<br>[ placeholder — add annotated image ]
       </div>
     </div>
@@ -1269,7 +984,7 @@ footer {
         <tr><td>Shin (Wrist) Link</td><td>134.76 mm</td></tr>
         <tr><td>Nominal Stand Height</td><td>180.00 mm</td></tr>
         <tr><td>Frame</td><td>SpotMicro 3D-print</td></tr>
-        <tr><td>Chassis Cavity</td><td>150 × 97 × 48 mm</td></tr>
+        <tr><td>Chassis Cavity</td><td>150 x 97 x 48 mm</td></tr>
       </table>
 
       <div style="margin-top:2rem;">
@@ -1295,51 +1010,15 @@ footer {
   <h2 class="arch-title reveal">Not Just Walking —<br><em style="color:var(--accent);font-style:normal;">Performing.</em></h2>
 
   <div class="tricks-grid reveal reveal-delay-1">
-    <div class="trick-card">
-      <span class="trick-card-icon">🐾</span>
-      <span class="trick-card-name">Trot</span>
-      <span class="trick-card-btn">D-Pad</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🤝</span>
-      <span class="trick-card-name">Shake</span>
-      <span class="trick-card-btn">LB</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🙇</span>
-      <span class="trick-card-name">Bow</span>
-      <span class="trick-card-btn">R-Trigger</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🪑</span>
-      <span class="trick-card-name">Sit</span>
-      <span class="trick-card-btn">M1</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">💪</span>
-      <span class="trick-card-name">Push-ups</span>
-      <span class="trick-card-btn">B</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🦄</span>
-      <span class="trick-card-name">Rear Up</span>
-      <span class="trick-card-btn">RB</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🖐️</span>
-      <span class="trick-card-name">High-Five</span>
-      <span class="trick-card-btn">M2</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">💃</span>
-      <span class="trick-card-name">Tilt Dance</span>
-      <span class="trick-card-btn">A</span>
-    </div>
-    <div class="trick-card">
-      <span class="trick-card-icon">🐛</span>
-      <span class="trick-card-name">Wiggle</span>
-      <span class="trick-card-btn">L-Trigger</span>
-    </div>
+    <div class="trick-card"><span class="trick-card-name">Trot</span><span class="trick-card-btn">D-Pad</span></div>
+    <div class="trick-card"><span class="trick-card-name">Shake</span><span class="trick-card-btn">LB</span></div>
+    <div class="trick-card"><span class="trick-card-name">Bow</span><span class="trick-card-btn">R-Trigger</span></div>
+    <div class="trick-card"><span class="trick-card-name">Sit</span><span class="trick-card-btn">M1</span></div>
+    <div class="trick-card"><span class="trick-card-name">Push-ups</span><span class="trick-card-btn">B</span></div>
+    <div class="trick-card"><span class="trick-card-name">Rear Up</span><span class="trick-card-btn">RB</span></div>
+    <div class="trick-card"><span class="trick-card-name">High-Five</span><span class="trick-card-btn">M2</span></div>
+    <div class="trick-card"><span class="trick-card-name">Tilt Dance</span><span class="trick-card-btn">A</span></div>
+    <div class="trick-card"><span class="trick-card-name">Wiggle</span><span class="trick-card-btn">L-Trigger</span></div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:3rem;" class="reveal reveal-delay-2">
@@ -1361,7 +1040,7 @@ footer {
           <tr><td>Pitch Gain</td><td>0.8</td></tr>
           <tr><td>Roll Gain</td><td>1.2</td></tr>
           <tr><td>Coxa Roll Gain</td><td>8.0</td></tr>
-          <tr><td>Deadband</td><td>0.7°</td></tr>
+          <tr><td>Deadband</td><td>0.7 deg</td></tr>
         </tbody>
       </table>
     </div>
@@ -1378,32 +1057,32 @@ footer {
 
   <div class="gallery-grid reveal reveal-delay-1">
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Robot Photo</span>
       <div class="gallery-item-label">Full Build — Standing Pose</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Video / GIF</span>
       <div class="gallery-item-label">Trot Gait Demo</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Robot Photo</span>
       <div class="gallery-item-label">Electronics Bay — Top View</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Video / GIF</span>
       <div class="gallery-item-label">Shake Trick Demo</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">📸</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Robot Photo</span>
       <div class="gallery-item-label">CAD / Blender Render</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon">🎬</span>
+      <span class="gallery-placeholder-icon"></span>
       <span class="gallery-placeholder-text">Video / GIF</span>
       <div class="gallery-item-label">IMU Posture Stabilisation</div>
     </div>
@@ -1417,14 +1096,12 @@ footer {
   <div class="divider" style="margin-bottom:3rem;"></div>
   <span class="section-label reveal">Tech Stack</span>
 
-  <!-- Marquee -->
   <div class="stack-marquee reveal">
     <div class="stack-marquee-inner">
       <span>Python 3.10+</span><span>NumPy</span><span>SMBus2</span><span>Pygame</span>
       <span>Three.js</span><span>Jetson Orin Nano</span><span>Ubuntu 22.04</span>
       <span>PCA9685</span><span>MPU6050</span><span>OrbbecSDK</span><span>GStreamer</span>
       <span>TensorRT</span><span>OpenCV</span><span>Blender</span><span>Git</span>
-      <!-- Duplicate for seamless loop -->
       <span>Python 3.10+</span><span>NumPy</span><span>SMBus2</span><span>Pygame</span>
       <span>Three.js</span><span>Jetson Orin Nano</span><span>Ubuntu 22.04</span>
       <span>PCA9685</span><span>MPU6050</span><span>OrbbecSDK</span><span>GStreamer</span>
@@ -1446,7 +1123,7 @@ footer {
     <div class="stack-item reveal reveal-delay-2">
       <div class="stack-item-category">Control Loop</div>
       <div class="stack-item-value">50 Hz / 20ms</div>
-      <div class="stack-item-note">I2C writes are bottleneck (~8–12ms)</div>
+      <div class="stack-item-note">I2C writes are bottleneck (~8-12ms)</div>
     </div>
     <div class="stack-item reveal reveal-delay-3">
       <div class="stack-item-category">IK Engine</div>
@@ -1502,7 +1179,7 @@ footer {
   </div>
   <div class="footer-bottom">
     <div class="footer-credit">
-      Built from scratch · No ROS · Pure Python
+      Built by Aryaman Gupta & Krish Agarwal · No ROS · Pure Python
     </div>
   </div>
 </footer>
@@ -1511,388 +1188,577 @@ footer {
      SCRIPTS
      ═══════════════════════════════════════════════ -->
 <script>
-// ─── Loading Screen ───
-(function() {
-  let pct = 0;
-  const pctEl = document.getElementById('loader-pct');
-  const fillEl = document.getElementById('loader-fill');
-  const loader = document.getElementById('loader');
-  const labels = [
-    'Initializing I2C bus...',
-    'Calibrating IMU (200 samples)...',
-    'Loading absolute truths...',
-    'Computing stand reference...',
-    'Solving IK for 4 legs...',
-    'Normalizing joint space...',
-    'Starting control loop...',
-    'Ready.'
-  ];
-  const labelEl = loader.querySelector('.loader-label');
-
-  function tick() {
-    pct += Math.random() * 12 + 2;
-    if (pct > 100) pct = 100;
-    const rounded = Math.floor(pct);
-    pctEl.textContent = rounded + '%';
-    fillEl.style.width = rounded + '%';
-    const labelIdx = Math.min(Math.floor(rounded / 14), labels.length - 1);
-    labelEl.textContent = labels[labelIdx];
-
-    if (rounded < 100) {
-      setTimeout(tick, 80 + Math.random() * 120);
-    } else {
-      setTimeout(() => {
-        loader.classList.add('hidden');
-        document.body.style.overflow = '';
-        initReveal();
-      }, 400);
-    }
+/* ─── Clock ─── */
+(function(){
+  var el = document.getElementById('clock');
+  function u(){
+    var n = new Date();
+    el.textContent = n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   }
-  document.body.style.overflow = 'hidden';
-  setTimeout(tick, 300);
+  u(); setInterval(u,1000);
 })();
 
-// ─── Clock ───
-(function() {
-  const el = document.getElementById('clock');
-  function update() {
-    const now = new Date();
-    el.textContent = now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  }
-  update();
-  setInterval(update, 1000);
-})();
-
-// ─── Scroll Reveal ───
-function initReveal() {
-  const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-  reveals.forEach(el => observer.observe(el));
+/* ─── Scroll Reveal ─── */
+function initReveal(){
+  var els = document.querySelectorAll('.reveal');
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('visible'); });
+  },{threshold:0.1,rootMargin:'0px 0px -50px 0px'});
+  els.forEach(function(el){ obs.observe(el); });
 }
 
-// ─── Active Nav ───
-(function() {
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('#side-nav a');
-  window.addEventListener('scroll', () => {
-    let current = '';
-    sections.forEach(s => {
-      const top = s.offsetTop - 200;
-      if (window.scrollY >= top) current = s.id;
-    });
-    navLinks.forEach(a => {
-      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
-    });
+/* ─── Active Nav ─── */
+(function(){
+  var secs = document.querySelectorAll('section[id]');
+  var links = document.querySelectorAll('#side-nav a');
+  window.addEventListener('scroll',function(){
+    var cur='';
+    secs.forEach(function(s){if(window.scrollY >= s.offsetTop-200) cur=s.id;});
+    links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+cur);});
   });
 })();
 </script>
 
 <!-- ═══════════════════════════════════════════════
-     THREE.JS — ROBOT MODEL (DIAGNOSTIC BUILD)
+     THREE.JS — URDF INTERACTIVE VIEWER
      ═══════════════════════════════════════════════ -->
 <script>
-(function () {
-  const container   = document.getElementById('hero-3d-container');
-  const canvas      = document.getElementById('hero-canvas');
-  const placeholder = document.getElementById('hero-placeholder');
+(function(){
+  'use strict';
 
-  console.log('[3D] Step 1: Script started');
-  console.log('[3D] Container size:', container.clientWidth, '×', container.clientHeight);
+  /* ═══════════════════════════════════════════
+     URDF DATA
+     ═══════════════════════════════════════════ */
+  var URDF_LINKS = {
+    base:      { mesh:'quadruped_robot 5/urdf/meshes/base/base.dae', visual_origin:null, mass:1.178, collision_size:'310 x 120 x 80 mm' },
+    fl_coxa:   { mesh:'quadruped_robot 5/urdf/meshes/fl/fl_coxa.dae',  visual_origin:[-0.130254,-0.041309,-0.218966], mass:0.092 },
+    fl_thigh:  { mesh:'quadruped_robot 5/urdf/meshes/fl/fl_thigh.dae', visual_origin:[-0.103344,-0.066999,-0.208214], mass:0.124 },
+    fl_wrist:  { mesh:'quadruped_robot 5/urdf/meshes/fl/fl_wrist.dae', visual_origin:[-0.045648,-0.074999,-0.117518], mass:0.092 },
+    fr_coxa:   { mesh:'quadruped_robot 5/urdf/meshes/fr/fr_coxa.dae',  visual_origin:[-0.130254,0.036578,-0.218966],  mass:0.092 },
+    fr_thigh:  { mesh:'quadruped_robot 5/urdf/meshes/fr/fr_thigh.dae', visual_origin:[-0.103344,0.062269,-0.208214],  mass:0.124 },
+    fr_wrist:  { mesh:'quadruped_robot 5/urdf/meshes/fr/fr_wrist.dae', visual_origin:[-0.045648,0.070268,-0.117518],  mass:0.092 },
+    rl_coxa:   { mesh:'quadruped_robot 5/urdf/meshes/rl/rl_coxa.dae',  visual_origin:[0.078047,-0.041309,-0.218966],  mass:0.092 },
+    rl_thigh:  { mesh:'quadruped_robot 5/urdf/meshes/rl/rl_thigh.dae', visual_origin:[0.104957,-0.066999,-0.208214],  mass:0.124 },
+    rl_wrist:  { mesh:'quadruped_robot 5/urdf/meshes/rl/rl_wrist.dae', visual_origin:[0.162653,-0.074999,-0.117518],  mass:0.092 },
+    rr_coxa:   { mesh:'quadruped_robot 5/urdf/meshes/rr/rr_coxa.dae',  visual_origin:[0.078047,0.036578,-0.218966],   mass:0.092 },
+    rr_thigh:  { mesh:'quadruped_robot 5/urdf/meshes/rr/rr_thigh.dae', visual_origin:[0.104957,0.062269,-0.208214],   mass:0.124 },
+    rr_wrist:  { mesh:'quadruped_robot 5/urdf/meshes/rr/rr_wrist.dae', visual_origin:[0.162653,0.070268,-0.117518],   mass:0.092 }
+  };
 
-  /* ── Renderer ──────────────────────────────── */
-  const renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    alpha: true,
-    antialias: true,
-  });
+  var URDF_JOINTS = {
+    base_to_fl_coxa:     {parent:'base',    child:'fl_coxa',  origin:[0.130254,0.041309,0.218966],      axis:[1,0,0],  lower:-0.785, upper:0.785,  type:'revolute'},
+    fl_coxa_to_fl_thigh: {parent:'fl_coxa', child:'fl_thigh', origin:[-0.026910,0.025690,-0.010752],    axis:[0,-1,0], lower:-1.745, upper:2.967,  type:'revolute'},
+    fl_thigh_to_fl_wrist:{parent:'fl_thigh',child:'fl_wrist', origin:[-0.057696,0.008000,-0.090696],    axis:[0,-1,0], lower:-2.130, upper:1.361,  type:'revolute'},
+    base_to_fr_coxa:     {parent:'base',    child:'fr_coxa',  origin:[0.130254,-0.036578,0.218966],     axis:[1,0,0],  lower:-0.785, upper:0.785,  type:'revolute'},
+    fr_coxa_to_fr_thigh: {parent:'fr_coxa', child:'fr_thigh', origin:[-0.026910,-0.025691,-0.010752],   axis:[0,1,0],  lower:-2.967, upper:1.745,  type:'revolute'},
+    fr_thigh_to_fr_wrist:{parent:'fr_thigh',child:'fr_wrist', origin:[-0.057696,-0.007999,-0.090696],   axis:[0,1,0],  lower:-1.362, upper:2.129,  type:'revolute'},
+    base_to_rl_coxa:     {parent:'base',    child:'rl_coxa',  origin:[-0.078047,0.041309,0.218966],     axis:[1,0,0],  lower:-0.785, upper:0.785,  type:'revolute'},
+    rl_coxa_to_rl_thigh: {parent:'rl_coxa', child:'rl_thigh', origin:[-0.026910,0.025690,-0.010752],    axis:[0,-1,0], lower:-1.745, upper:2.967,  type:'revolute'},
+    rl_thigh_to_rl_wrist:{parent:'rl_thigh',child:'rl_wrist', origin:[-0.057696,0.008000,-0.090696],    axis:[0,-1,0], lower:-2.130, upper:1.361,  type:'revolute'},
+    base_to_rr_coxa:     {parent:'base',    child:'rr_coxa',  origin:[-0.078047,-0.036578,0.218966],    axis:[1,0,0],  lower:-0.785, upper:0.785,  type:'revolute'},
+    rr_coxa_to_rr_thigh: {parent:'rr_coxa', child:'rr_thigh', origin:[-0.026910,-0.025691,-0.010752],   axis:[0,1,0],  lower:-2.967, upper:1.745,  type:'revolute'},
+    rr_thigh_to_rr_wrist:{parent:'rr_thigh',child:'rr_wrist', origin:[-0.057696,-0.007999,-0.090696],   axis:[0,1,0],  lower:-1.362, upper:2.129,  type:'revolute'}
+  };
+
+  var LINK_TO_JOINT = {};
+  for (var jname in URDF_JOINTS) {
+    var jd = URDF_JOINTS[jname];
+    LINK_TO_JOINT[jd.child] = { name:jname, parent:jd.parent, child:jd.child, origin:jd.origin, axis:jd.axis, lower:jd.lower, upper:jd.upper, type:jd.type };
+  }
+
+  var FRIENDLY = {
+    base:'Chassis / Base',
+    fl_coxa:'Front-Left Coxa', fl_thigh:'Front-Left Thigh', fl_wrist:'Front-Left Wrist',
+    fr_coxa:'Front-Right Coxa', fr_thigh:'Front-Right Thigh', fr_wrist:'Front-Right Wrist',
+    rl_coxa:'Rear-Left Coxa', rl_thigh:'Rear-Left Thigh', rl_wrist:'Rear-Left Wrist',
+    rr_coxa:'Rear-Right Coxa', rr_thigh:'Rear-Right Thigh', rr_wrist:'Rear-Right Wrist'
+  };
+
+  /* ═══════════════════════════════════════════
+     DOM
+     ═══════════════════════════════════════════ */
+  var container   = document.getElementById('hero-3d-container');
+  var canvas      = document.getElementById('hero-canvas');
+  var placeholder = document.getElementById('hero-placeholder');
+  var hoverHint   = document.getElementById('hover-hint');
+  var leaderSvg   = document.getElementById('leader-svg');
+  var infoPanel   = document.getElementById('info-panel');
+  var ipName      = document.getElementById('ip-name');
+  var ipType      = document.getElementById('ip-type');
+  var ipRows      = document.getElementById('ip-rows');
+
+  /* ═══════════════════════════════════════════
+     THREE.JS SETUP
+     ═══════════════════════════════════════════ */
+  var renderer = new THREE.WebGLRenderer({canvas:canvas, alpha:true, antialias:true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.4;
-  console.log('[3D] Step 2: Renderer created');
+  renderer.toneMappingExposure = 1.6;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  /* ── Camera ────────────────────────────────── */
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 500);
-  camera.position.set(0, 1, 5);
+  var camera = new THREE.PerspectiveCamera(35, 1, 0.001, 100);
+  camera.position.set(0.35, 0.25, 0.45);
 
-  /* ── Scene ─────────────────────────────────── */
-  const scene = new THREE.Scene();
+  var scene = new THREE.Scene();
 
-  /* ── Lights ────────────────────────────────── */
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  /* Lighting — dramatic */
+  scene.add(new THREE.AmbientLight(0x222233, 0.6));
+  var kl = new THREE.DirectionalLight(0xffffff, 2.2);
+  kl.position.set(0.5, 0.8, 0.6); kl.castShadow = true; scene.add(kl);
+  var fl = new THREE.DirectionalLight(0x6688cc, 1.0);
+  fl.position.set(-0.5, 0.3, 0.3); scene.add(fl);
+  var rl = new THREE.DirectionalLight(0xc8ff00, 0.8);
+  rl.position.set(0, -0.3, -0.8); scene.add(rl);
+  var al = new THREE.PointLight(0x00f0ff, 0.5, 2);
+  al.position.set(-0.3, 0.15, 0.3); scene.add(al);
+  scene.add(new THREE.HemisphereLight(0x333355, 0x0a0a0a, 0.4));
 
-  const dir1 = new THREE.DirectionalLight(0xffffff, 2.0);
-  dir1.position.set(5, 5, 5);
-  scene.add(dir1);
-
-  const dir2 = new THREE.DirectionalLight(0xc8e8ff, 1.2);
-  dir2.position.set(-5, 3, 2);
-  scene.add(dir2);
-
-  const dir3 = new THREE.DirectionalLight(0xc8ff00, 0.6);
-  dir3.position.set(0, -2, -5);
-  scene.add(dir3);
-
-  scene.add(new THREE.HemisphereLight(0x444444, 0x111111, 0.6));
-
-  console.log('[3D] Step 3: Lights added');
-
-  /* ── TEST CUBE — proves rendering pipeline works ── */
-  const testGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-  const testMat = new THREE.MeshNormalMaterial();
-  const testCube = new THREE.Mesh(testGeo, testMat);
-  testCube.name = 'DEBUG_CUBE';
-  scene.add(testCube);
-  console.log('[3D] Step 4: Debug cube added — you should see a rainbow cube');
-
-  /* ── Controls ──────────────────────────────── */
-  const controls = new THREE.OrbitControls(camera, canvas);
+  /* Controls */
+  var controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.enablePan = false;
   controls.autoRotate = true;
-  controls.autoRotateSpeed = 1.5;
-  controls.addEventListener('start', () => { controls.autoRotate = false; });
-  controls.addEventListener('end',   () => { controls.autoRotate = true;  });
+  controls.autoRotateSpeed = 0.8;
+  controls.enablePan = false;
+  controls.minDistance = 0.15;
+  controls.maxDistance = 1.2;
+  controls.target.set(0, 0.12, 0);
 
-  /* ── Resize ────────────────────────────────── */
-  function setSize() {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) {
-      console.warn('[3D] Container has zero size!', w, h);
-      return;
-    }
+  var userDragging = false;
+  var dragTimeout = null;
+  canvas.addEventListener('pointerdown', function(e){
+    // Only treat as drag for orbit (not click-to-select)
+    userDragging = false; // will be set true on pointermove
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if(e.buttons > 0) userDragging = true;
+  });
+
+  /* Resize */
+  function setSize(){
+    var w = container.clientWidth, h = container.clientHeight;
+    if(!w||!h) return;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    camera.aspect = w/h;
     camera.updateProjectionMatrix();
   }
-  const ro = new ResizeObserver(() => setSize());
-  ro.observe(container);
+  new ResizeObserver(setSize).observe(container);
   setSize();
-  console.log('[3D] Step 5: Resize configured');
 
-  /* ── Animation mixer ───────────────────────── */
-  let mixer = null;
-  const clock = new THREE.Clock();
+  /* ═══════════════════════════════════════════
+     MATERIALS
+     ═══════════════════════════════════════════ */
+  function matBase(ln){
+    var isBody = ln==='base';
+    return new THREE.MeshPhongMaterial({
+      color: isBody ? 0x1a1a1a : 0x2a2a2a,
+      specular: isBody ? 0xc8ff00 : 0x888888,
+      shininess: isBody ? 80 : 50,
+      emissive: 0x050505, side: THREE.DoubleSide,
+      transparent:true, opacity:1.0
+    });
+  }
+  function matHighlight(){
+    return new THREE.MeshPhongMaterial({
+      color:0x1a2a0a, specular:0xc8ff00, shininess:120,
+      emissive:0x1a2a00, emissiveIntensity:0.5,
+      side:THREE.DoubleSide, transparent:true, opacity:1.0
+    });
+  }
+  function matFaded(){
+    return new THREE.MeshPhongMaterial({
+      color:0x111111, specular:0x222222, shininess:10,
+      emissive:0x000000, side:THREE.DoubleSide,
+      transparent:true, opacity:0.12
+    });
+  }
 
-  /* ── Render loop ───────────────────────────── */
-  let frameCount = 0;
-  function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
+  /* ═══════════════════════════════════════════
+     BUILD KINEMATIC TREE
+     ═══════════════════════════════════════════ */
+  var robotGroup = new THREE.Group();
+  robotGroup.name = 'robot';
+  scene.add(robotGroup);
 
-    // Spin the test cube so you KNOW rendering works
-    if (testCube.parent) {
-      testCube.rotation.x += 0.01;
-      testCube.rotation.y += 0.015;
+  var linkGroups = {};
+  var linkMeshes = {};
+  var linkCenters = {};
+  var originalPositions = {};
+
+  // Create groups
+  for(var ln in URDF_LINKS){
+    var g = new THREE.Group();
+    g.name = ln;
+    g.userData.linkName = ln;
+    linkGroups[ln] = g;
+  }
+  robotGroup.add(linkGroups['base']);
+
+  for(var jn in URDF_JOINTS){
+    var j = URDF_JOINTS[jn];
+    var pg = linkGroups[j.parent];
+    var cg = linkGroups[j.child];
+    if(pg && cg){
+      cg.position.set(j.origin[0], j.origin[1], j.origin[2]);
+      pg.add(cg);
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     LOAD .DAE MESHES
+     ═══════════════════════════════════════════ */
+  var colladaLoader = new THREE.ColladaLoader();
+  var loadedCount = 0;
+  var totalLinks = Object.keys(URDF_LINKS).length;
+  var statusEl = document.getElementById('loader-status');
+
+  function updateProgress(){
+    loadedCount++;
+    var pct = Math.round((loadedCount/totalLinks)*100);
+    document.getElementById('loader-pct').textContent = pct+'%';
+    document.getElementById('loader-fill').style.width = pct+'%';
+    if(loadedCount >= totalLinks) finishLoading();
+  }
+
+  function loadMesh(linkName, linkData){
+    colladaLoader.load(linkData.mesh,
+      function(collada){
+        var meshRoot = collada.scene;
+        if(linkData.visual_origin){
+          meshRoot.position.set(linkData.visual_origin[0], linkData.visual_origin[1], linkData.visual_origin[2]);
+        }
+        var meshes = [];
+        meshRoot.traverse(function(child){
+          if(child.isMesh){
+            child.material = matBase(linkName);
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.userData.linkName = linkName;
+            meshes.push(child);
+          }
+        });
+        linkMeshes[linkName] = meshes;
+        linkGroups[linkName].add(meshRoot);
+        if(statusEl) statusEl.textContent = 'Loaded '+linkName+'.dae';
+        updateProgress();
+      },
+      undefined,
+      function(err){
+        console.error('[URDF] Failed:', linkName, err);
+        linkMeshes[linkName] = [];
+        updateProgress();
+      }
+    );
+  }
+
+  for(var lnKey in URDF_LINKS) loadMesh(lnKey, URDF_LINKS[lnKey]);
+
+  /* ═══════════════════════════════════════════
+     FINISH LOADING
+     ═══════════════════════════════════════════ */
+  function finishLoading(){
+    var box = new THREE.Box3().setFromObject(robotGroup);
+    var center = new THREE.Vector3();
+    var size = new THREE.Vector3();
+    box.getCenter(center);
+    box.getSize(size);
+
+    robotGroup.position.set(-center.x, -box.min.y, -center.z);
+
+    var newBox = new THREE.Box3().setFromObject(robotGroup);
+    var nc = new THREE.Vector3();
+    newBox.getCenter(nc);
+    controls.target.copy(nc);
+
+    var maxDim = Math.max(size.x, size.y, size.z);
+    var dist = maxDim * 2.0;
+    camera.position.set(dist*0.7, dist*0.5, dist*0.9);
+    camera.near = maxDim*0.01;
+    camera.far = maxDim*40;
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    computeCenters();
+
+    for(var ln2 in linkGroups){
+      var gg = linkGroups[ln2];
+      originalPositions[ln2] = {
+        pos: gg.position.clone(),
+        quat: gg.quaternion.clone(),
+        scale: gg.scale.clone()
+      };
     }
 
-    controls.update();
-    renderer.render(scene, camera);
+    setTimeout(function(){
+      document.getElementById('loader').classList.add('hidden');
+      placeholder.classList.add('hidden');
+      document.body.style.overflow = '';
+      initReveal();
+    }, 400);
+  }
 
-    frameCount++;
-    if (frameCount === 1) console.log('[3D] First frame rendered');
-    if (frameCount === 60) console.log('[3D] 60 frames rendered — render loop OK');
+  function computeCenters(){
+    for(var ln3 in linkGroups){
+      var b = new THREE.Box3().setFromObject(linkGroups[ln3]);
+      var c = new THREE.Vector3();
+      b.getCenter(c);
+      linkCenters[ln3] = c;
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     RAYCASTING & INTERACTION
+     ═══════════════════════════════════════════ */
+  var raycaster = new THREE.Raycaster();
+  var mouse = new THREE.Vector2();
+  var hoveredLink = null;
+  var selectedLink = null;
+  var isAnimating = false;
+  var explodeOffset = new THREE.Vector3();
+  var explodeTarget = new THREE.Vector3();
+
+  canvas.addEventListener('mousemove', function(e){
+    var rect = canvas.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    if(selectedLink || isAnimating) return;
+
+    raycaster.setFromCamera(mouse, camera);
+    var allM = [];
+    for(var k in linkMeshes) allM = allM.concat(linkMeshes[k]);
+    var hits = raycaster.intersectObjects(allM, false);
+
+    if(hits.length > 0){
+      var ln4 = hits[0].object.userData.linkName;
+      if(ln4 && ln4 !== hoveredLink){
+        hoveredLink = ln4;
+        canvas.style.cursor = 'pointer';
+        doHoverVisuals(ln4);
+      }
+    } else {
+      if(hoveredLink){
+        hoveredLink = null;
+        canvas.style.cursor = 'default';
+        resetVisuals();
+      }
+    }
+  });
+
+  /* CLICK: select if nothing selected, deselect if already selected */
+  canvas.addEventListener('click', function(e){
+    if(isAnimating) return;
+    if(userDragging){ userDragging = false; return; } // was a drag, not a click
+
+    if(selectedLink){
+      // DESELECT on second click anywhere
+      deselectPart();
+      return;
+    }
+
+    if(hoveredLink){
+      selectPart(hoveredLink);
+    }
+  });
+
+  /* Pointer up — resume auto-rotate after drag */
+  canvas.addEventListener('pointerup', function(){
+    if(userDragging){
+      userDragging = false;
+      if(dragTimeout) clearTimeout(dragTimeout);
+      dragTimeout = setTimeout(function(){
+        if(!selectedLink) controls.autoRotate = true;
+      }, 3000);
+    }
+  });
+
+  /* ═══════════════════════════════════════════
+     HOVER VISUALS
+     ═══════════════════════════════════════════ */
+  function doHoverVisuals(ln5){
+    for(var k2 in linkMeshes){
+      var ms = linkMeshes[k2];
+      for(var i=0;i<ms.length;i++){
+        if(k2===ln5) ms[i].material = matHighlight();
+        else { var m = matBase(k2); m.opacity = 0.5; ms[i].material = m; }
+      }
+    }
+  }
+
+  function resetVisuals(){
+    for(var k3 in linkMeshes){
+      var ms2 = linkMeshes[k3];
+      for(var i2=0;i2<ms2.length;i2++) ms2[i2].material = matBase(k3);
+    }
+    hideInfo();
+  }
+
+  /* ═══════════════════════════════════════════
+     SELECT / DESELECT
+     ═══════════════════════════════════════════ */
+  function selectPart(ln6){
+    if(isAnimating) return;
+    selectedLink = ln6;
+    isAnimating = true;
+    controls.autoRotate = false;
+    container.classList.add('part-selected');
+    hoverHint.classList.add('hidden');
+
+    computeCenters();
+    var partC = linkCenters[ln6] ? linkCenters[ln6].clone() : new THREE.Vector3();
+    var robotC = new THREE.Vector3();
+    new THREE.Box3().setFromObject(robotGroup).getCenter(robotC);
+
+    var dir = partC.clone().sub(robotC).normalize();
+    if(dir.length() < 0.001) dir.set(0,1,0);
+    if(ln6==='base') dir.set(0,1,0);
+
+    explodeTarget.copy(dir).multiplyScalar(0.08);
+    explodeOffset.set(0,0,0);
+
+    for(var k4 in linkMeshes){
+      var ms3 = linkMeshes[k4];
+      for(var i3=0;i3<ms3.length;i3++){
+        if(k4===ln6) ms3[i3].material = matHighlight();
+        else ms3[i3].material = matFaded();
+      }
+    }
+
+    showInfo(ln6);
+    setTimeout(function(){ isAnimating = false; }, 500);
+  }
+
+  function deselectPart(){
+    if(isAnimating) return;
+    isAnimating = true;
+    selectedLink = null;
+    container.classList.remove('part-selected');
+
+    explodeTarget.set(0,0,0);
+    resetVisuals();
+
+    setTimeout(function(){
+      controls.autoRotate = true;
+      isAnimating = false;
+      hoverHint.classList.remove('hidden');
+      hoveredLink = null;
+    }, 500);
+  }
+
+  /* ═══════════════════════════════════════════
+     INFO PANEL
+     ═══════════════════════════════════════════ */
+  function showInfo(ln7){
+    var friendly = FRIENDLY[ln7] || ln7;
+    var ji = LINK_TO_JOINT[ln7];
+    var ld = URDF_LINKS[ln7];
+
+    ipName.textContent = friendly;
+    ipType.textContent = ji ? ji.type + ' joint' : 'root link';
+
+    var h = '';
+    h += row('Mass', (ld.mass*1000).toFixed(0)+' g');
+    if(ld.collision_size) h += row('Collision', ld.collision_size);
+    if(ji){
+      var lo = (ji.lower*180/Math.PI).toFixed(1);
+      var up = (ji.upper*180/Math.PI).toFixed(1);
+      h += row('Joint', ji.name);
+      h += row('Axis', '['+ji.axis.join(', ')+']');
+      h += row('Range', lo+' to '+up+' deg');
+      h += row('Origin', ji.origin.map(function(v){return (v*1000).toFixed(1);}).join(', ')+' mm');
+    }
+    h += row('Link', ln7);
+    h += row('Mesh', ln7+'.dae');
+    ipRows.innerHTML = h;
+    infoPanel.classList.add('visible');
+  }
+
+  function hideInfo(){
+    infoPanel.classList.remove('visible');
+    leaderSvg.innerHTML = '';
+  }
+
+  function row(label, value){
+    return '<div class="info-row"><span class="info-row-label">'+label+'</span><span class="info-row-value">'+value+'</span></div>';
+  }
+
+  /* ═══════════════════════════════════════════
+     UPDATE LEADER LINE POSITION
+     ═══════════════════════════════════════════ */
+  function updateLeader(){
+    if(!selectedLink) return;
+    computeCenters();
+    var wp = linkCenters[selectedLink];
+    if(!wp) return;
+
+    var proj = wp.clone().project(camera);
+    var w = container.clientWidth;
+    var h = container.clientHeight;
+    var sx = (proj.x*0.5+0.5)*w;
+    var sy = (-proj.y*0.5+0.5)*h;
+
+    // Determine panel side: if part is on left half, panel goes right; vice versa
+    var panelOnRight = sx < w * 0.55;
+    var bendX, panelX, panelY;
+
+    if(panelOnRight){
+      bendX = sx + 50;
+      panelX = Math.min(sx + 100, w - 300);
+    } else {
+      bendX = sx - 50;
+      panelX = Math.max(sx - 310, 10);
+    }
+    panelY = Math.max(Math.min(sy - 50, h - 250), 20);
+
+    infoPanel.style.left = panelX + 'px';
+    infoPanel.style.top = panelY + 'px';
+
+    var endX = panelOnRight ? panelX : panelX + 210;
+    var endY = panelY + 12;
+
+    leaderSvg.innerHTML =
+      '<defs><filter id="gl"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>' +
+      '<path d="M '+sx+' '+sy+' L '+bendX+' '+sy+' L '+endX+' '+endY+'" fill="none" stroke="rgba(200,255,0,0.4)" stroke-width="1" filter="url(#gl)"/>' +
+      '<path d="M '+sx+' '+sy+' L '+bendX+' '+sy+' L '+endX+' '+endY+'" fill="none" stroke="rgba(200,255,0,0.85)" stroke-width="0.5"/>' +
+      '<circle cx="'+sx+'" cy="'+sy+'" r="3" fill="none" stroke="#c8ff00" stroke-width="1"><animate attributeName="r" values="3;7;3" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/></circle>' +
+      '<circle cx="'+sx+'" cy="'+sy+'" r="1.5" fill="#c8ff00"/>' +
+      '<circle cx="'+endX+'" cy="'+endY+'" r="2" fill="#00f0ff" opacity="0.8"/>';
+  }
+
+  /* ═══════════════════════════════════════════
+     RENDER LOOP
+     ═══════════════════════════════════════════ */
+  var clock = new THREE.Clock();
+
+  function animate(){
+    requestAnimationFrame(animate);
+    clock.getDelta();
+    controls.update();
+
+    // Smooth explode
+    if(selectedLink && linkGroups[selectedLink]){
+      var g2 = linkGroups[selectedLink];
+      var orig = originalPositions[selectedLink];
+      if(orig){
+        explodeOffset.lerp(explodeTarget, 0.08);
+        g2.position.copy(orig.pos).add(explodeOffset);
+      }
+    } else {
+      explodeOffset.lerp(explodeTarget, 0.12);
+      for(var ln8 in linkGroups){
+        var orig2 = originalPositions[ln8];
+        if(orig2) linkGroups[ln8].position.lerp(orig2.pos, 0.12);
+      }
+    }
+
+    updateLeader();
+    renderer.render(scene, camera);
   }
   animate();
-  console.log('[3D] Step 6: Render loop started');
 
-  /* ── Load GLB ──────────────────────────────── */
-  console.log('[3D] Step 7: Starting GLB load from "models/robot.glb"');
-
-  const loader = new THREE.GLTFLoader();
-
-  loader.load(
-    'models/robot.glb',
-
-    /* ── SUCCESS ─────────────────────────────── */
-    function (gltf) {
-      console.log('[3D] ✅ GLB loaded successfully!');
-      console.log('[3D] Scene children:', gltf.scene.children.length);
-      console.log('[3D] Animations:', gltf.animations.length);
-
-      const model = gltf.scene;
-
-      /* --- Log all meshes and their materials --- */
-      let meshCount = 0;
-      model.traverse(function (child) {
-        if (child.isMesh) {
-          meshCount++;
-          console.log(
-            '[3D] Mesh:', child.name,
-            '| vertices:', child.geometry.attributes.position
-              ? child.geometry.attributes.position.count : '??',
-            '| material:', child.material.type,
-            '| color:', child.material.color
-              ? '#' + child.material.color.getHexString() : 'none',
-            '| metalness:', child.material.metalness,
-            '| roughness:', child.material.roughness
-          );
-        }
-      });
-      console.log('[3D] Total meshes found:', meshCount);
-
-      /* --- FORCE VISIBLE MATERIALS --- *
-       * Replace every material with something guaranteed visible.
-       * Option A: MeshNormalMaterial (rainbow, no lights needed)
-       * Option B: MeshPhongMaterial (classic lit, always works)
-       * 
-       * Using Option B for a nicer look:
-       */
-      model.traverse(function (child) {
-        if (child.isMesh) {
-          // Completely replace the material — no PBR, no envMap needed
-          child.material = new THREE.MeshPhongMaterial({
-            color: 0x333333,
-            specular: 0xc8ff00,
-            shininess: 60,
-            emissive: 0x0a0a0a,
-            side: THREE.DoubleSide,   // render both sides
-            flatShading: false,
-          });
-
-          // Color specific parts differently
-          const n = child.name.toLowerCase();
-          if (n.includes('body')) {
-            child.material.color.set(0x1a1a1a);
-            child.material.specular.set(0xc8ff00);
-            child.material.shininess = 80;
-          } else if (n.includes('servo') || n.includes('motor')) {
-            child.material.color.set(0x222222);
-            child.material.specular.set(0x88aaff);
-            child.material.shininess = 100;
-          } else if (n.includes('coxa') || n.includes('thigh') || n.includes('wrist')) {
-            child.material.color.set(0x2a2a2a);
-            child.material.specular.set(0xffffff);
-            child.material.shininess = 40;
-          }
-
-          child.frustumCulled = false;
-          child.material.needsUpdate = true;
-        }
-      });
-      console.log('[3D] Materials replaced with MeshPhongMaterial');
-
-      /* --- Compute bounds --- */
-      const box    = new THREE.Box3().setFromObject(model);
-      const size   = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
-
-      console.log('[3D] Raw bounding box size:', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2));
-      console.log('[3D] Raw center:', center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2));
-
-      /* --- Centre at origin --- */
-            /* --- Scale FIRST, then centre --- */
-      const maxDim = Math.max(size.x, size.y, size.z);
-      if (maxDim === 0) {
-        console.error('[3D] ❌ Model has zero size!');
-        return;
-      }
-      const s = 2.0 / maxDim;
-      model.scale.setScalar(s);
-
-      // Position must be in WORLD space (post-scale).
-      // Three.js applies: worldPos = translate + scale * localPos
-      // To move center to origin: translate = -(scale * center)
-      model.position.set(
-        -center.x * s,
-        -center.y * s,
-        -center.z * s
-      );
-
-      console.log('[3D] Scale:', s.toFixed(6));
-      console.log('[3D] Position offset:', model.position.x.toFixed(4), model.position.y.toFixed(4), model.position.z.toFixed(4));
-
-      console.log('[3D] maxDim:', maxDim.toFixed(2), '| scale factor:', s.toFixed(6));
-
-      /* --- Add to scene --- */
-      scene.add(model);
-      console.log('[3D] Model added to scene');
-
-      /* --- Verify bounds after transform --- */
-      const box2 = new THREE.Box3().setFromObject(model);
-      const size2 = new THREE.Vector3();
-      const center2 = new THREE.Vector3();
-      box2.getSize(size2);
-      box2.getCenter(center2);
-      console.log('[3D] Post-transform size:', size2.x.toFixed(3), size2.y.toFixed(3), size2.z.toFixed(3));
-      console.log('[3D] Post-transform center:', center2.x.toFixed(3), center2.y.toFixed(3), center2.z.toFixed(3));
-
-      /* --- Remove debug cube --- */
-      scene.remove(testCube);
-      testGeo.dispose();
-      testMat.dispose();
-      console.log('[3D] Debug cube removed');
-
-      /* --- Position camera --- */
-      const scaledH = size.y * s;
-      const fovRad  = THREE.MathUtils.degToRad(camera.fov / 2);
-      const dist    = (scaledH / 2) / Math.tan(fovRad) * 1.8;
-
-      camera.position.set(dist * 0.6, scaledH * 0.3, dist);
-      camera.lookAt(0, 0, 0);
-      camera.near = dist * 0.01;
-      camera.far  = dist * 20;
-      camera.updateProjectionMatrix();
-
-      controls.target.set(0, 0, 0);
-      controls.minDistance = dist * 0.2;
-      controls.maxDistance = dist * 6;
-      controls.update();
-
-      console.log('[3D] Camera at distance:', dist.toFixed(3));
-
-      /* --- Play animations --- */
-      if (gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach(function (clip) {
-          console.log('[3D] Playing animation:', clip.name, '| duration:', clip.duration.toFixed(2) + 's');
-          mixer.clipAction(clip).play();
-        });
-      }
-
-      /* --- Fade placeholder --- */
-      placeholder.classList.add('hidden');
-      console.log('[3D] ✅ All done — model should be visible!');
-    },
-
-    /* ── PROGRESS ────────────────────────────── */
-    function (xhr) {
-      if (xhr.lengthComputable) {
-        const pct = Math.round(xhr.loaded / xhr.total * 100);
-        console.log('[3D] Loading:', pct + '%', '(' + (xhr.loaded/1024/1024).toFixed(1) + ' MB)');
-        const textEl = placeholder.querySelector('.placeholder-text');
-        if (textEl) textEl.textContent = 'Loading model… ' + pct + '%';
-      }
-    },
-
-    /* ── ERROR ────────────────────────────────── */
-    function (err) {
-      console.error('[3D] ❌ GLB LOAD FAILED:', err);
-      console.error('[3D] Check: Is the file at models/robot.glb relative to the HTML?');
-      console.error('[3D] Check: Are you running a local server (not file://)?');
-      console.error('[3D] Check: Open Network tab → is the request 404?');
-
-      const textEl = placeholder.querySelector('.placeholder-text');
-      if (textEl) {
-        textEl.innerHTML =
-          '<span style="color:#ff3b30;">LOAD FAILED</span><br>' +
-          'Check browser console (F12)<br>' +
-          'Is models/robot.glb accessible?';
-      }
-    }
-  );
-
+  document.body.style.overflow = 'hidden';
 })();
 </script>
 
