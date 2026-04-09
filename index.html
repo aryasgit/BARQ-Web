@@ -13,6 +13,7 @@
 <!-- Three.js r128 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/ColladaLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <style>
@@ -182,7 +183,11 @@ section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
 .hero-top {
   display: flex; justify-content: space-between; align-items: flex-start;
   flex-wrap: wrap; gap: 2rem;
+  position: relative; z-index: 5;
+  mix-blend-mode: difference;
 }
+/* hero-bottom already has position:relative z-index:5 — just add blend */
+
 .hero-title-block { max-width: 50%; }
 .hero-title {
   font-family: var(--font-mono); font-size: clamp(2.2rem, 5vw, 4.5rem);
@@ -195,12 +200,10 @@ section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
   max-width: 420px; line-height: 1.6;
 }
 
-/* 3D Canvas Area — ENLARGED */
+/* 3D Canvas Area — FULL BLEED */
 .hero-3d-container {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(88vw, 88vh);
-  height: min(88vw, 88vh);
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
   z-index: 0; pointer-events: auto;
 }
 #hero-canvas {
@@ -224,8 +227,16 @@ section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
 
 .hero-bottom {
   display: flex; justify-content: space-between; align-items: flex-end;
-  flex-wrap: wrap; gap: 1rem; position: relative; z-index: 2;
+  flex-wrap: wrap; gap: 1rem; position: relative; z-index: 5;
+  mix-blend-mode: difference;
 }
+/* All hero text forced white so difference-blend produces true inversion:
+   white over dark bg ≈ white; white over lit mesh ≈ inverted colour */
+.hero-title, .hero-subtitle,
+.hero-title em,
+.hero-threads-title, .hero-threads ol li,
+.hero-callout-right .callout-box p,
+.hero-cta-row a { color: #ffffff; }
 .hero-threads { max-width: 380px; }
 .hero-threads-title {
   font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
@@ -506,6 +517,7 @@ section { position: relative; padding: 0 var(--grid-margin); z-index: 2; }
 }
 .dims-table td:last-child {
   font-size: 0.8rem; color: var(--accent); text-align: right; font-weight: 400;
+  padding-right: 2.5rem;
 }
 
 /* ═══════════════════════════════════════════════
@@ -644,6 +656,143 @@ footer {
 .footer-credit a:hover { color: var(--accent); }
 
 /* ═══════════════════════════════════════════════
+   SITE-WIDE TEXT INVERSION
+   difference blend on individual text nodes:
+   palette is ~unchanged on the dark body bg,
+   inverts naturally against any bright backdrop.
+   ═══════════════════════════════════════════════ */
+.arch-title,
+.section-label,
+.about-main-text,
+.about-main-text strong,
+.about-stat .stat-value,
+.about-stat .stat-label,
+.callout-box p,
+.arch-layer-num,
+.arch-layer-name,
+.arch-layer-desc,
+.arch-layer-file,
+.data-flow-step,
+.hw-card-name,
+.hw-card-value,
+.hw-card-detail,
+.hw-card-tag,
+.dims-table td,
+.trick-card-name,
+.trick-card-btn,
+.gamepad-table td,
+.gamepad-table th,
+.gallery-item-label,
+.stack-item-category,
+.stack-item-value,
+.stack-item-note,
+.stack-marquee-inner span,
+.footer-col-title,
+.footer-col a,
+.footer-col p,
+.footer-credit,
+.footer-credit a {
+  mix-blend-mode: difference;
+}
+
+/* ═══════════════════════════════════════════════
+   HOLOGRAPHIC COMPONENT VIEWER
+   ═══════════════════════════════════════════════ */
+#inspection { padding-top: 6rem; padding-bottom: 6rem; }
+
+.holo-tabs {
+  display: flex; gap: 0; flex-wrap: wrap;
+  border: 1px solid var(--border-color); margin-bottom: 0; overflow: hidden;
+}
+.holo-tab {
+  font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase;
+  letter-spacing: 0.15em; border: none; border-right: 1px solid var(--border-color);
+  background: none; color: var(--grey); padding: 0.7em 1.4em;
+  cursor: pointer; transition: all var(--transition); flex: 1; text-align: center;
+}
+.holo-tab:last-child { border-right: none; }
+.holo-tab:hover { color: var(--cyan); background: rgba(0,240,255,0.04); }
+.holo-tab.active {
+  color: var(--cyan); background: rgba(0,240,255,0.06);
+  box-shadow: inset 0 -2px 0 var(--cyan);
+}
+
+.holo-canvas-wrap {
+  position: relative; width: 100%; height: 58vh; min-height: 360px;
+  border: 1px solid rgba(0,240,255,0.18); border-top: none;
+  overflow: hidden; background: rgba(0,8,14,0.7);
+}
+#holo-canvas { width: 100% !important; height: 100% !important; display: block; }
+
+/* Scanline overlay */
+.holo-canvas-wrap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,240,255,0.018) 3px, rgba(0,240,255,0.018) 4px
+  );
+}
+/* Vignette */
+.holo-canvas-wrap::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.65) 100%);
+}
+
+/* Corner brackets */
+.holo-corner {
+  position: absolute; width: 18px; height: 18px; z-index: 4; pointer-events: none;
+}
+.holo-corner-tl { top: -1px; left: -1px;
+  border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.holo-corner-tr { top: -1px; right: -1px;
+  border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.holo-corner-bl { bottom: -1px; left: -1px;
+  border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.holo-corner-br { bottom: -1px; right: -1px;
+  border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+
+/* Status bar below canvas */
+.holo-status-bar {
+  border: 1px solid rgba(0,240,255,0.18); border-top: none;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5em 1em;
+}
+.holo-comp-name {
+  font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--cyan);
+}
+.holo-comp-meta {
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey);
+}
+.holo-comp-status {
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--grey);
+  display: flex; align-items: center; gap: 0.5em;
+}
+.holo-status-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--grey);
+  transition: background 0.3s ease;
+}
+.holo-status-dot.live { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+
+/* Pending placeholder */
+.holo-pending {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.8rem; pointer-events: none;
+}
+.holo-pending.hidden { display: none; }
+.holo-pending-label {
+  font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase;
+  letter-spacing: 0.3em; color: rgba(0,240,255,0.4);
+}
+.holo-pending-path {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  color: rgba(0,240,255,0.25);
+}
+
+/* ═══════════════════════════════════════════════
    SCROLL REVEAL
    ═══════════════════════════════════════════════ */
 .reveal {
@@ -669,7 +818,6 @@ footer {
   .arch-layer { grid-template-columns: 60px 1fr; }
   .arch-layer-desc { display: none; }
   nav { display: none; }
-  .hero-3d-container { width: 95vw; height: 70vw; }
 }
 @media (max-width: 600px) {
   .gallery-grid { grid-template-columns: 1fr; }
@@ -724,6 +872,7 @@ footer {
   <a href="#dimensions">Body</a>
   <a href="#tricks">Tricks</a>
   <a href="#gallery">Gallery</a>
+  <a href="#inspection">Inspect</a>
   <a href="#stack">Tech</a>
 </nav>
 
@@ -782,7 +931,7 @@ footer {
     <div class="hero-cta-row reveal reveal-delay-3">
       <a href="#architecture">Explore Stack</a>
       <a href="#hardware">View Hardware</a>
-      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/aryasgit/quadruped" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
 </section>
@@ -965,13 +1114,12 @@ footer {
      ═══════════════════════════════════════════════ -->
 <section id="dimensions">
   <div class="divider" style="margin-bottom:3rem;"></div>
-  <span class="section-label reveal">Body Geometry</span>
-
+  <span class="section-label reveal">Our Work</span>
+x
   <div class="dims-layout">
     <div class="dims-visual reveal">
       <div class="dims-placeholder">
-        <span class="dims-icon"></span>
-        Robot side-view diagram<br>[ placeholder — add annotated image ]
+        <video src="images/table.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:contain;"></video>
       </div>
     </div>
     <div class="reveal reveal-delay-1">
@@ -1057,34 +1205,74 @@ footer {
 
   <div class="gallery-grid reveal reveal-delay-1">
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Robot Photo</span>
+      <img src="images/robot1.png" style="width:100%; height:100%; object-fit:cover;">
       <div class="gallery-item-label">Full Build — Standing Pose</div>
     </div>
     <div class="gallery-item">
       <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Video / GIF</span>
-      <div class="gallery-item-label">Trot Gait Demo</div>
+      <video src="images/sweep.mov" autoplay loop muted style="width:100%; height:100%; object-fit:cover;"></video>
+      <div class="gallery-item-label">Robot Sweep</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Robot Photo</span>
+      <img src="images/bay.png" style="width:100%; height:100%; object-fit:cover;">
       <div class="gallery-item-label">Electronics Bay — Top View</div>
     </div>
     <div class="gallery-item">
       <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Video / GIF</span>
-      <div class="gallery-item-label">Shake Trick Demo</div>
+      <video src="images/video.mp4" autoplay loop muted style="width:100%; height:100%; object-fit:cover;"></video>
+      <div class="gallery-item-label">Work</div>
     </div>
     <div class="gallery-item">
-      <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Robot Photo</span>
+      <img src="images/robot2.png" style="width:100%; height:100%; object-fit:cover;">
       <div class="gallery-item-label">CAD / Blender Render</div>
     </div>
     <div class="gallery-item">
       <span class="gallery-placeholder-icon"></span>
-      <span class="gallery-placeholder-text">Video / GIF</span>
-      <div class="gallery-item-label">IMU Posture Stabilisation</div>
+      <video src="images/blender.mp4" autoplay loop muted style="width:100%; height:100%; object-fit:cover;"></video>
+      <div class="gallery-item-label">Blender Render</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     COMPONENT INSPECTION — holographic viewer
+     ═══════════════════════════════════════════════ -->
+<section id="inspection">
+  <div class="divider" style="margin-bottom:3rem;"></div>
+  <span class="section-label reveal">Component Inspection</span>
+  <h2 class="arch-title reveal">Holographic<br>Hardware Breakdown.</h2>
+
+  <div class="reveal reveal-delay-1">
+    <!-- Tab selector -->
+    <div class="holo-tabs" id="holo-tabs">
+      <button class="holo-tab active" data-comp="jetson">Jetson Orin Nano</button>
+      <button class="holo-tab"        data-comp="pca"   >PCA9685</button>
+      <button class="holo-tab"        data-comp="mpu"   >MPU6050</button>
+      <button class="holo-tab"        data-comp="orbbec">Orbbec Gemini 336</button>
+    </div>
+
+    <!-- Canvas -->
+    <div class="holo-canvas-wrap" id="holo-container">
+      <canvas id="holo-canvas"></canvas>
+      <div class="holo-corner holo-corner-tl"></div>
+      <div class="holo-corner holo-corner-tr"></div>
+      <div class="holo-corner holo-corner-bl"></div>
+      <div class="holo-corner holo-corner-br"></div>
+      <!-- Shown until GLB is loaded -->
+      <div class="holo-pending" id="holo-pending">
+        <div class="holo-pending-label">Awaiting mesh</div>
+        <div class="holo-pending-path" id="holo-pending-path">models/jetson.glb</div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="holo-status-bar">
+      <div class="holo-comp-name" id="holo-comp-name">Jetson Orin Nano</div>
+      <div class="holo-comp-meta" id="holo-comp-meta">40 TOPS · Ubuntu 22.04 · I2C Bus 7</div>
+      <div class="holo-comp-status">
+        <span class="holo-status-dot" id="holo-status-dot"></span>
+        <span id="holo-status-text">Loading</span>
+      </div>
     </div>
   </div>
 </section>
@@ -1326,6 +1514,12 @@ function initReveal(){
   controls.maxDistance = 1.2;
   controls.target.set(0, 0.12, 0);
 
+  /* Safari / trackpad pinch fix — OrbitControls in r128 attaches its
+     wheel listener without {passive:false}, so preventDefault() silently
+     fails and Safari steals the pinch gesture for browser navigation.
+     A passive:false listener here claims the event first. */
+  canvas.addEventListener('wheel', function(e){ e.preventDefault(); }, {passive: false});
+
   var userDragging = false;
   var dragTimeout = null;
   canvas.addEventListener('pointerdown', function(e){
@@ -1473,7 +1667,7 @@ function initReveal(){
     controls.target.copy(nc);
 
     var maxDim = Math.max(size.x, size.y, size.z);
-    var dist = maxDim * 2.0;
+    var dist = maxDim * 1.55;
     camera.position.set(dist*0.7, dist*0.5, dist*0.9);
     camera.near = maxDim*0.01;
     camera.far = maxDim*40;
@@ -1759,6 +1953,266 @@ function initReveal(){
   animate();
 
   document.body.style.overflow = 'hidden';
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     THREE.JS — HOLOGRAPHIC COMPONENT VIEWER
+     ═══════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  /* ── Component manifest ── */
+  var COMPS = {
+    jetson: { label:'Jetson Orin Nano',    meta:'40 TOPS · Ubuntu 22.04 · I2C Bus 7',          file:'models/jetson.glb',  color:0x00f0ff },
+    pca:    { label:'PCA9685',             meta:'16-ch 12-bit PWM · I2C 0x40 · 50 Hz',         file:'models/pca9685.glb', color:0xc8ff00 },
+    mpu:    { label:'MPU6050',             meta:'6-DOF IMU · I2C 0x68 · Complementary filter', file:'models/mpu6050.glb', color:0x00f0ff },
+    orbbec: { label:'Orbbec Gemini 336',   meta:'Active stereo · Global shutter · 850 nm IR',  file:'models/orbbec.glb',  color:0x00f0ff }
+  };
+
+  var canvas    = document.getElementById('holo-canvas');
+  var container = document.getElementById('holo-container');
+  if (!canvas || !container) return;
+
+  /* ── Renderer ── */
+  var renderer = new THREE.WebGLRenderer({ canvas:canvas, alpha:true, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.sortObjects = true;
+
+  /* ── Camera + Controls ── */
+  var camera = new THREE.PerspectiveCamera(38, 1, 0.0001, 200);
+  camera.position.set(0.4, 0.25, 0.6);
+
+  var controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping  = true;
+  controls.dampingFactor  = 0.06;
+  controls.autoRotate     = true;
+  controls.autoRotateSpeed = 1.2;
+  controls.enablePan      = false;
+  controls.minDistance    = 0.05;
+  controls.maxDistance    = 5;
+
+  canvas.addEventListener('wheel', function(e){ e.preventDefault(); }, {passive:false});
+
+  /* ── Resize ── */
+  function setSize(){
+    var w = container.clientWidth, h = container.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(setSize).observe(container);
+  setSize();
+
+  /* ── Materials ── */
+  function holoFill(hex){
+    return new THREE.MeshPhongMaterial({
+      color: 0x000a10,
+      emissive: hex,
+      emissiveIntensity: 0.2,
+      transparent: true,
+      opacity: 0.07,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+  }
+  function holoWire(hex){
+    return new THREE.LineBasicMaterial({
+      color: hex,
+      transparent: true,
+      opacity: 0.72
+    });
+  }
+
+  /* ── Scenes store ── */
+  var scenes    = {};   // id → THREE.Scene
+  var models    = {};   // id → root Object3D
+  var loaded    = {};   // id → bool
+  var activeid  = 'jetson';
+
+  /* ── Build scene for one component ── */
+  function buildScene(id){
+    var comp  = COMPS[id];
+    var scene = new THREE.Scene();
+    scenes[id] = scene;
+
+    // Ambient
+    scene.add(new THREE.AmbientLight(0x001a22, 0.8));
+
+    // Key light — coloured to component accent
+    var kl = new THREE.PointLight(comp.color, 3, 6);
+    kl.position.set(0.5, 0.8, 0.6);
+    scene.add(kl);
+    // Rim
+    var rl = new THREE.PointLight(comp.color, 1.2, 4);
+    rl.position.set(-0.4, -0.3, -0.5);
+    scene.add(rl);
+    // Subtle white fill
+    scene.add(new THREE.HemisphereLight(0x002233, 0x000000, 0.4));
+
+    // Load GLB
+    var loader = new THREE.GLTFLoader();
+    loader.load(
+      comp.file,
+      function(gltf){
+        var root = gltf.scene;
+
+        /* Normalise scale to fit ~0.7 unit bounding box */
+        var box  = new THREE.Box3().setFromObject(root);
+        var sz   = new THREE.Vector3();
+        box.getSize(sz);
+        var maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
+        root.scale.setScalar(0.7 / maxDim);
+
+        /* Centre on origin */
+        box.setFromObject(root);
+        var ctr = new THREE.Vector3();
+        box.getCenter(ctr);
+        root.position.sub(ctr);
+
+        /* Apply holographic material to every mesh */
+        root.traverse(function(child){
+          if (!child.isMesh) return;
+          child.material  = holoFill(comp.color);
+          child.renderOrder = 1;
+
+          /* Edges wireframe — angle threshold 20° keeps CAD feature lines */
+          try {
+            var geo  = child.geometry.index
+                       ? child.geometry
+                       : THREE.BufferGeometryUtils
+                         ? THREE.BufferGeometryUtils.mergeVertices(child.geometry)
+                         : child.geometry;
+            var edges = new THREE.EdgesGeometry(geo, 20);
+            var wire  = new THREE.LineSegments(edges, holoWire(comp.color));
+            wire.renderOrder = 2;
+            child.add(wire);
+          } catch(e){ /* geometry not compatible, skip wireframe */ }
+        });
+
+        scene.add(root);
+        models[id] = root;
+        loaded[id] = true;
+
+        /* Fit camera if this is the active component */
+        if (id === activeid) fitCamera(root, comp.color);
+        if (id === activeid) setStatus('Live', true);
+      },
+      undefined,
+      function(err){
+        console.warn('[HOLO] Could not load', comp.file, err);
+        loaded[id] = 'error';
+        if (id === activeid) setStatus('Model pending', false);
+      }
+    );
+  }
+
+  /* ── Fit camera to loaded model ── */
+  function fitCamera(root, hex){
+    var box = new THREE.Box3().setFromObject(root);
+    var sz  = new THREE.Vector3();
+    box.getSize(sz);
+    var maxDim = Math.max(sz.x, sz.y, sz.z) || 0.5;
+    var dist   = maxDim * 2.2;
+
+    camera.near = maxDim * 0.01;
+    camera.far  = maxDim * 80;
+    camera.updateProjectionMatrix();
+    camera.position.set(dist * 0.7, dist * 0.4, dist * 0.9);
+
+    var ctr = new THREE.Vector3();
+    box.getCenter(ctr);
+    controls.target.copy(ctr);
+    controls.update();
+  }
+
+  /* ── UI helpers ── */
+  var elName   = document.getElementById('holo-comp-name');
+  var elMeta   = document.getElementById('holo-comp-meta');
+  var elDot    = document.getElementById('holo-status-dot');
+  var elStatus = document.getElementById('holo-status-text');
+  var elPath   = document.getElementById('holo-pending-path');
+  var elPend   = document.getElementById('holo-pending');
+
+  function setStatus(txt, live){
+    if (elStatus) elStatus.textContent = txt;
+    if (elDot) elDot.classList.toggle('live', live);
+  }
+  function showPending(show, path){
+    if (elPend)  elPend.classList.toggle('hidden', !show);
+    if (elPath && path) elPath.textContent = path;
+  }
+
+  function switchTo(id){
+    activeid = id;
+    var comp  = COMPS[id];
+
+    /* Update UI labels */
+    if (elName) elName.textContent = comp.label;
+    if (elMeta) elMeta.textContent = comp.meta;
+
+    /* Tab highlight */
+    document.querySelectorAll('.holo-tab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.comp === id);
+    });
+
+    /* Build scene lazily */
+    if (!scenes[id]) buildScene(id);
+
+    /* Pending overlay */
+    if (loaded[id] === true){
+      showPending(false);
+      setStatus('Live', true);
+      if (models[id]) fitCamera(models[id], comp.color);
+    } else if (loaded[id] === 'error'){
+      showPending(true, comp.file);
+      setStatus('Model pending', false);
+    } else {
+      showPending(true, comp.file);
+      setStatus('Loading', false);
+    }
+  }
+
+  /* ── Tab clicks ── */
+  document.querySelectorAll('.holo-tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      switchTo(btn.dataset.comp);
+    });
+  });
+
+  /* ── Init: build all scenes upfront ── */
+  Object.keys(COMPS).forEach(buildScene);
+  switchTo('jetson');
+
+  /* ── Pulse uniforms ── */
+  var clock3 = new THREE.Clock();
+
+  /* ── Render loop ── */
+  function animateHolo(){
+    requestAnimationFrame(animateHolo);
+    var t = clock3.getElapsedTime();
+    controls.update();
+
+    var scene = scenes[activeid];
+    if (!scene) return;
+
+    /* Subtle pulse on wireframe opacity */
+    scene.traverse(function(child){
+      if (child.isLineSegments && child.material){
+        child.material.opacity = 0.65 + Math.sin(t * 1.8) * 0.1;
+      }
+      if (child.isMesh && child.material && child.material.emissive){
+        child.material.emissiveIntensity = 0.18 + Math.sin(t * 2.3) * 0.06;
+      }
+    });
+
+    renderer.render(scene, camera);
+  }
+  animateHolo();
+
 })();
 </script>
 
